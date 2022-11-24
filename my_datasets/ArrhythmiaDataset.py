@@ -7,6 +7,7 @@ import pywt
 import numpy as np
 from tsmoothie import ConvolutionSmoother
 from typing import Optional, Tuple, Iterable, Union
+import matplotlib.pyplot as plt
 from wavelets import cmor, mexh
 
 
@@ -78,9 +79,7 @@ class ArrhythmiaDataset(Dataset):
 
 
 class ArrhythmiaDataset2D(ArrhythmiaDataset):
-    IMG_SIZE = 128
-    COLOUR_CHANNELS = 1
-    wavelets = {"mexh": 32, "cmor": 64}
+    wavelets = {"mexh": 64, "cmor": 64}
 
     def __init__(
         self,
@@ -89,8 +88,6 @@ class ArrhythmiaDataset2D(ArrhythmiaDataset):
         wavelet: Optional[str] = "mexh",
     ):
         super(ArrhythmiaDataset2D, self).__init__(data_path, reference_path)
-        self.data_path = data_path
-        self.reference_path = reference_path
         self.wavelet = wavelet if self.wavelets.__contains__(wavelet) else "mexh"
 
     @staticmethod
@@ -99,47 +96,11 @@ class ArrhythmiaDataset2D(ArrhythmiaDataset):
         return eval(wavelet)(signal, widths)
 
     def __getitem__(self, item: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        r"""
-            - ECG is cut to 2000 data points (4 seconds) (if True)
-            - ECG is smoothed (if True)
-            - returns a tuple: (img, target)
-        """
-        file_path = os.path.join(self.data_path, self.references.iloc[item, 0])
-        data = loadmat(f'{file_path}.mat')
-        ecg_data = data['ECG']['data'][0][0][self.lead - 1]  # leads in [1,12] hence -1 indexes correctly
-
-        ecg_imgs = np.zeros((self.COLOUR_CHANNELS, self.IMG_SIZE, self.IMG_SIZE))
-        trim_length = 2000
-        step = 2
-        base = np.zeros((1, trim_length // step))
-        if self.trim:
-            base = self._trim_data(ecg_data, trim_length, step)
-        if self.normalize:
-            base = self._normalize(base)
-        if self.smoothen:
-            base = self._smoothen(base)
-        if self.wavelet is not None:
-            ecg_imgs = self._cwt(base, self.wavelet, self.wavelets[self.wavelet])
-
-        ecg_imgs = torch.as_tensor(ecg_imgs, dtype=torch.float32).unsqueeze(dim=0)
+        ecg, tgt = ArrhythmiaDataset.__getitem__(self, item)
+        ecg = np.array(ecg)
+        ecg_img = self._cwt(ecg, self.wavelet, self.wavelets[self.wavelet])
+        ecg_img = torch.as_tensor(ecg_img)
 
         if self.test:
-            return ecg_imgs, self.names[item]
-        return ecg_imgs, self.targets[item]
-
-
-d1 = ArrhythmiaDataset(data_path='Train300', reference_path="reference300.csv")
-d2 = ArrhythmiaDataset2D(data_path='Train300', reference_path="reference300.csv")
-
-a1 = d1[0][0]
-a2 = d2[0][0]
-
-import matplotlib.pyplot as plt
-
-x = np.linspace(0, len(a1), len(a1))
-plt.plot(x, a1)
-#plt.show()
-#plt.imshow(a2.permute(1, 2, 0))
-plt.show()
-
-
+            return ecg_img, self.names[item]
+        return ecg_img, self.targets[item]
