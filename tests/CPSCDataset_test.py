@@ -10,6 +10,3 @@ for i in range(5):
     img, tgt = d2[i]
     plt.matshow(img, cmap='Greys')
     plt.show()
-
-
-
