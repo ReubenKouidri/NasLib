@@ -93,7 +93,7 @@ class CPSCDataset2D(CPSCDataset):
     def __getitem__(self, item: int) -> Tuple[torch.Tensor, torch.Tensor]:
         ecg, tgt = CPSCDataset.__getitem__(self, item)
         ecg = np.array(ecg)
-        ecg_img = eval(self.wavelet)(ecg, self.wavelet, self.wavelets[self.wavelet])
+        ecg_img = eval(self.wavelet)(ecg, self.wavelets[self.wavelet])
         ecg_img = torch.as_tensor(ecg_img)
 
         if self.test:
