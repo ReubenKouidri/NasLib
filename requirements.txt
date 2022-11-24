@@ -1,0 +1,12 @@
+torch
+typing
+wheel
+twine
+numpy
+tsmoothie
+pandas
+scipy
+scikit-image
+pywt
+mypy
+matplotlib
