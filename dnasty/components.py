@@ -10,13 +10,35 @@ __allowed_activations__ = nn.modules.activation.__all__
 
 class ChannelPool(nn.Module):
     @staticmethod
-    def forward(x):
-        return torch.cat((torch.max(x, 1)[0].unsqueeze(1), torch.mean(x, 1).unsqueeze(1)), dim=1)
+    def forward(x: Tensor) -> Tensor:
+        # (N, C, H, W) => channel dim = 1
+        # torch.max returns type torch.return_types.max: first tensor contains the max values
+        # whereas the second tensor is an index tensor showing which input channel the max value occurred in
+        max_channel_pool = torch.max(x, dim=1)[0]
+        max_channel_pool = max_channel_pool.unsqueeze(dim=1)
+        av_channel_pool = torch.mean(x, dim=1)
+        av_channel_pool = av_channel_pool.unsqueeze(dim=1)
+        return torch.cat((av_channel_pool, max_channel_pool), dim=1)
+
+        #return torch.cat((torch.max(x, 1)[0].unsqueeze(1), torch.mean(x, 1).unsqueeze(1)), dim=1)
         # concatenates tensors to gain description of both max and mean features
 
 
 class SpatialAttention(nn.Module):
-    ...
+    def __init__(self, kernel_size: k_size_t) -> None:
+        super(SpatialAttention, self).__init__()
+        self.kernel_size = kernel_size
+        self.compress = ChannelPool()
+        self.padding = (self.kernel_size - 1) // 2
+        self.activation = nn.Sigmoid()
+        self.conv = ConvBlock2D(in_channels=2, out_channels=1, kernel_size=self.kernel_size,
+                                stride=1, padding=self.padding, relu=False)
+
+    def forward(self, x: Tensor) -> Tensor:
+        out = self.compress(x)
+        out = self.conv(out)
+        out = self.activation(out)
+        return torch.mul(x, out)  # element-wise
 
 
 class Flatten(nn.Module):
