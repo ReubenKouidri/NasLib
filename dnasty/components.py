@@ -2,12 +2,20 @@ from typing import Tuple, Any, Optional, Union, TypeVar, TypeAlias
 import torch
 from torch import Tensor, Module
 from torch import nn
+from my_types import k_size_t, stride_t, pad_t, dil_t, act_t
+
+
+class ChannelPool(nn.Module):
+    ...
+
+
+class SpatialAttention(nn.Module):
+    ...
 
 
 class Flatten(nn.Module):
     """
     TODO:
-        - add type hints
         - write documentation for how this works
     """
     @staticmethod
@@ -15,19 +23,21 @@ class Flatten(nn.Module):
         return x.view(x.size(0), -1)
 
 
-class ConvLayer(nn.Module):
+class ConvBlock2D(nn.Module):
     def __init__(
             self,
             in_channels: int,
             out_channels: int,
-            kernel_size: k_size_t,
-            stride: stride_t = 1,
+            kernel_size: Union[int, Tuple],
+            stride: Optional[Union[int, Tuple]] = 1,
             padding: Optional[int] = 1,
             dilation: Optional[int] = 1,
             groups: Optional[int] = 1,
-            bias: Optional[bool] = True
+            bias: Optional[bool] = True,
+            relu: Optional[bool] = True,
+            bn: Optional[bool] = True
     ):
-        super(ConvLayer, self).__init__()
+        super(ConvBlock2D, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
@@ -40,18 +50,23 @@ class ConvLayer(nn.Module):
                               kernel_size=kernel_size, stride=self.stride,
                               padding=self.padding, dilation=self.dilation,
                               groups=self.groups, bias=self.bias)
+        self.relu = nn.ReLU() if relu else False
+        self.bn = nn.BatchNorm2d(self.out_channels, momentum=0.1, affine=True) if bn else False
 
     def forward(self, x):
-        return self.conv(x)
+        x = self.conv(x)
+        x = self.relu(x) if self.relu else x
+        x = self.bn(x) if self.bn else x
+        return x
 
 
 class MaxPool2D(nn.Module):
     def __init__(
             self,
             size: k_size_t,
-            stride: Optional[stride_t],
-            padding: Optional[pad_t],
-            dilation: Optional[dil_t]
+            stride: Optional[stride_t] = 1,
+            padding: Optional[pad_t] = 1,
+            dilation: Optional[dil_t] = 1
     ):
         super(MaxPool2D, self).__init__()
         self.kernel_size = size
@@ -100,6 +115,7 @@ class ChannelAttention(nn.Module):
     def _gmp(x: Tensor) -> Tensor:
         """
         TODO: correct docstring and add more description
+        global max pool
         :param x: Tensor of form (batch_size, channels, height, width)
         :return: Tensor of form (batch_size, channels)
         """
@@ -120,29 +136,101 @@ class ChannelAttention(nn.Module):
         return av
 
 
-class ChannelPool(nn.Module):
-    ...
-
-
-class SpatialAttention(nn.Module):
-    ...
-
-
 class CBAM(nn.Module):
     def __init__(
             self,
             in_channels: int,
             se_ratio: int,
             kernel_size: Optional[k_size_t] = 4,
-            spatial: Optional[bool] = True
+            spatial: Optional[bool] = False,
+            channel: Optional[bool] = True
     ):
         super(CBAM, self).__init__()
         self.in_channels = in_channels
         self.se_ratio = se_ratio
         self.kernel_size = kernel_size
         self.spatial = spatial
+        self.channel_gate = ChannelAttention(in_channels=self.in_channels, se_ratio=self.se_ratio) if channel else None
+        self.spatial_gate = SpatialAttention() if spatial else None
 
-    def build(self): ...
+    def forward(self, x: Tensor) -> Tensor:
+        return self.channel_gate(x)
+
+
+class ResBlock1(nn.Module):
+    def __init__(
+            self,
+            in_planes_0: int,
+            out_planes_0: int,
+            se_ratio: int,
+            conv_kernel_size_0: k_size_t,
+            att_kernel_size: k_size_t,
+            mp_ker: Optional[k_size_t],
+            cbam: Optional[bool] = True,
+            channel: Optional[bool] = True,
+            spatial: Optional[bool] = False
+    ):
+        super(ResBlock1, self).__init__()
+        self.in_planes_0 = in_planes_0
+        self.out_planes_0 = out_planes_0
+        self.conv_kernel_size_0 = conv_kernel_size_0
+        self.att_kernel_size = att_kernel_size
+        self.mp_ker = mp_ker
+        self.reduction_ratio = se_ratio
+        self.mp = MaxPool2D(self.mp_ker)
+
+        self.conv_0 = ConvBlock2D(
+            in_planes=self.in_planes_0, out_planes=self.out_planes_0,
+            kernel_size=self.conv_kernel_size_0
+        )
+        self.cbam = CBAM(
+            in_channels=self.out_planes_0, se_ratio=self.reduction_ratio,
+            kernel_size=self.att_kernel_size, spatial=spatial, channel=channel
+        ) if cbam else None
+
+    def forward(self, x):
+        x = self.conv_0(x)
+        x = self.mp(x)
+        if self.cbam is not None:
+            x = self.cbam(x)
+        return x
+
+
+    class ResBlock2(nn.Module):
+        def __init__(
+                self, in_planes_0, out_planes_0, conv_kernel_size_0, att_kernel_size, mp_ker,
+                in_planes_1, out_planes_1, conv_kernel_size_1, reduction_ratio,
+                spatial=False, cbam=True
+        ):
+            super(ResBlock2, self).__init__()
+            self.in_planes_0 = in_planes_0
+            self.out_planes_0 = out_planes_0
+            self.conv_kernel_size_0 = conv_kernel_size_0
+            self.in_planes_1 = in_planes_1
+            self.out_planes_1 = out_planes_1
+            self.conv_kernel_size_1 = conv_kernel_size_1
+            self.att_kernel_size = att_kernel_size
+            self.mp_ker = mp_ker
+            self.reduction_ratio = reduction_ratio
+            self.spatial = spatial
+            self.mp = MaxPool2D(self.mp_ker)
+            self.conv_0 = ConvBlock2D(in_planes=self.in_planes_0, out_planes=self.out_planes_0,
+                                      kernel_size=self.conv_kernel_size_0
+                                      )
+            self.conv_1 = ConvBlock2D(in_planes=self.out_planes_0, out_planes=self.out_planes_1,
+                                      kernel_size=self.conv_kernel_size_1
+                                      )
+            self.cbam = CBAM(in_channels=self.out_planes_1, reduction_ratio=self.reduction_ratio,
+                             kernel_size=self.att_kernel_size, spatial=self.spatial
+                             ) if cbam else None
+
+        def forward(self, x):
+            x = self.conv_0(x)
+            x = self.conv_1(x)
+            x = self.mp(x)
+            if self.cbam is not None:
+                x = self.cbam(x)
+            return x
 
 
 
