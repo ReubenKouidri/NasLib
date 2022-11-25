@@ -9,7 +9,10 @@ __allowed_activations__ = nn.modules.activation.__all__
 
 
 class ChannelPool(nn.Module):
-    ...
+    @staticmethod
+    def forward(x):
+        return torch.cat((torch.max(x, 1)[0].unsqueeze(1), torch.mean(x, 1).unsqueeze(1)), dim=1)
+        # concatenates tensors to gain description of both max and mean features
 
 
 class SpatialAttention(nn.Module):
@@ -167,7 +170,12 @@ class CBAM(nn.Module):
         self.spatial_gate = SpatialAttention() if spatial else None
 
     def forward(self, x: Tensor) -> Tensor:
-        return self.channel_gate(x)
+        if self.channel_gate is not None:
+            x = self.channel_gate(x)
+        if self.spatial_gate is not None:
+            x = self.spatial_gate(x)
+
+        return x
 
 
 class ResBlock1(nn.Module):
