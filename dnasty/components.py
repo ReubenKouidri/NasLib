@@ -5,6 +5,9 @@ from torch import nn
 from my_types import k_size_t, stride_t, pad_t, dil_t, act_t
 
 
+__allowed_activations__ = nn.modules.activation.__all__
+
+
 class ChannelPool(nn.Module):
     ...
 
@@ -53,7 +56,7 @@ class ConvBlock2D(nn.Module):
         self.relu = nn.ReLU() if relu else False
         self.bn = nn.BatchNorm2d(self.out_channels, momentum=0.1, affine=True) if bn else False
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         x = self.conv(x)
         x = self.relu(x) if self.relu else x
         x = self.bn(x) if self.bn else x
@@ -76,7 +79,7 @@ class MaxPool2D(nn.Module):
         self.pool = nn.MaxPool2d(kernel_size=self.kernel_size, stride=self.stride,
                                  padding=self.padding, dilation=self.dilation)
 
-    def forward(self, x: Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         return self.pool(x)
 
 
@@ -85,18 +88,28 @@ class ChannelAttention(nn.Module):
             self,
             in_channels: int,
             se_ratio: int,
-            gmp_activation: act_t,
-            gap_activation: act_t,
-            out_activation: act_t
+            gmp_activation: Optional[str] = "ReLU",
+            gmp_kwargs: Optional[dict] = None,
+            gap_activation: Optional[str] = "ReLU",
+            gap_kwargs: Optional[dict] = None,
+            out_activation: Optional[str] = "Sigmoid",
+            out_kwargs: Optional[dict] = None
     ) -> None:
         super(ChannelAttention, self).__init__()
         self.in_channels = in_channels
         self.se_ratio = se_ratio
-        self.gmp_activation = gmp_activation
-        self.gap_activation = gap_activation
-        self.out_activation = out_activation
+        self.gmp_activation = self.make_activation(gmp_activation, **gmp_kwargs)
+        self.gap_activation = self.make_activation(gap_activation, **gap_kwargs)
+        self.out_activation = self.make_activation(out_activation, **out_kwargs)
         self.d1 = nn.Linear(in_features=self.in_channels, out_features=self.in_channels // self.se_ratio)
         self.d2 = nn.Linear(in_features=self.in_channels // self.se_ratio, out_features=self.in_channels)
+
+    @staticmethod
+    def make_activation(name: str, **kwargs: dict) -> act_t:
+        if name in __allowed_activations__:
+            return getattr(nn, name)(**kwargs)
+        else:
+            raise TypeError("Activation not valid!")
 
     def forward(self, x: Tensor) -> Tensor:
         gmp = self._gmp(x)
