@@ -1,25 +1,25 @@
-from typing import Union, Tuple, Optional, TypeAlias, TypeVar
+import sys
 from torch import nn
+from typing import Union, Tuple, Optional, TypeVar
+
 
 # TODO:
-#   - check type hints for tensors as they are currently not correct?
-#   - ...
-
-Alias = TypeAlias
+#  - check type hints for tensors as they are currently not correct?
+#  - ...
 
 T = TypeVar('T')
-_scalar_or_2tuple_t: Alias = Union[T, Tuple[T, T]]
+_scalar_or_2tuple_t = Union[T, Tuple[T, T]]
 
-stride_t: Alias = Optional[_scalar_or_2tuple_t[int]]
-k_size_t: Alias = _scalar_or_2tuple_t[int]
-pad_t: Alias = _scalar_or_2tuple_t[int]
-dil_t: Alias = _scalar_or_2tuple_t[int]
+stride_t = Optional[_scalar_or_2tuple_t[int]]
+k_size_t = _scalar_or_2tuple_t[int]
+pad_t = _scalar_or_2tuple_t[int]
+dil_t = _scalar_or_2tuple_t[int]
 
-act_t: Alias = nn.modules.activation
+act_t = nn.modules.activation
 batch_size_t = int
 channels_t = int
 img_height_t = int
 img_width_t = int
-tensor4d_t: Alias = Tuple[batch_size_t, channels_t, img_height_t, img_width_t]
-tensor_gmp_output_t: Alias = Tuple[batch_size_t, channels_t]
-tensor_gap_output_t: Alias = Tuple[batch_size_t, channels_t]
+tensor4d_t = Tuple[batch_size_t, channels_t, img_height_t, img_width_t]
+tensor_gmp_output_t = Tuple[batch_size_t, channels_t]
+tensor_gap_output_t = Tuple[batch_size_t, channels_t]
