@@ -1,6 +1,6 @@
-from typing import Tuple, Any, Optional, Union, TypeVar, TypeAlias
+from typing import Tuple, Optional, Union
 import torch
-from torch import Tensor, Module
+from torch import Tensor
 from torch import nn
 from my_types import k_size_t, stride_t, pad_t, dil_t, act_t
 
@@ -35,10 +35,10 @@ class SpatialAttention(nn.Module):
                                 stride=1, padding=self.padding, relu=False)
 
     def forward(self, x: Tensor) -> Tensor:
-        out = self.compress(x)
-        out = self.conv(out)
-        out = self.activation(out)
-        return torch.mul(x, out)  # element-wise
+        sa = self.compress(x)
+        sa = self.conv(sa)
+        sa = self.activation(sa)
+        return torch.mul(x, sa)  # element-wise
 
 
 class Flatten(nn.Module):
