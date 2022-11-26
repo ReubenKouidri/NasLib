@@ -43,11 +43,17 @@ class SpatialAttention(nn.Module):
 
 class Flatten(nn.Module):
     """
-    TODO:
-        - write documentation for how this works
+    The -1 infers the size from the other dimension
+    dim=0 is the batch dimension
+    so we are flattening the (N, C, H, W) tensor torch (N, C*H*W)
+
+    Example:
+        x = torch.randn((2, 3, 2, 2))
+        print(x)
+        print(x.view(x.size(dim=0), -1))
     """
     @staticmethod
-    def forward(x: Tensor):
+    def forward(x: Tensor) -> Tensor:
         return x.view(x.size(0), -1)
 
 
@@ -182,7 +188,7 @@ class CBAM(nn.Module):
             kernel_size: Optional[k_size_t] = 4,
             spatial: Optional[bool] = False,
             channel: Optional[bool] = True
-    ):
+    ) -> None:
         super(CBAM, self).__init__()
         self.in_channels = in_channels
         self.se_ratio = se_ratio
@@ -198,7 +204,7 @@ class CBAM(nn.Module):
         if self.spatial_gate is not None:
             cb = self.spatial_gate(x)
 
-        return x
+        return torch.add(x, cb)
 
 
 class ResBlock1(nn.Module):
@@ -213,7 +219,7 @@ class ResBlock1(nn.Module):
             cbam: Optional[bool] = True,
             channel: Optional[bool] = True,
             spatial: Optional[bool] = False
-    ):
+    ) -> None:
         super(ResBlock1, self).__init__()
         self.in_channels_0 = in_channels_0
         self.out_channels_0 = out_channels_0
@@ -232,7 +238,7 @@ class ResBlock1(nn.Module):
             kernel_size=self.att_kernel_size, spatial=spatial, channel=channel
         ) if cbam else None
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         x = self.conv_0(x)
         x = self.mp(x)
         if self.cbam is not None:
@@ -265,7 +271,8 @@ class ResBlock2(nn.Module):
                                   kernel_size=self.conv_kernel_size_1
                                   )
         self.cbam = CBAM(in_channels=self.out_channels_1, se_ratio=self.se_ratio,
-                         kernel_size=self.att_kernel_size, spatial=self.spatial
+                         kernel_size=self.att_kernel_size, spatial=self.spatial,
+                         channel=self.channel
                          ) if cbam else None
 
     def forward(self, x):
