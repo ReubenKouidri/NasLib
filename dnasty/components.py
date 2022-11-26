@@ -78,8 +78,6 @@ class SpatialAttention(nn.Module):
         return torch.mul(x, sa)  # element-wise
 
 
-
-
 class ConvBlock2D(nn.Module):
     def __init__(
             self,
@@ -138,25 +136,28 @@ class ChannelAttention(nn.Module):
         self.d1 = nn.Linear(in_features=self.in_channels, out_features=self.in_channels // self.se_ratio)
         self.d2 = nn.Linear(in_features=self.in_channels // self.se_ratio, out_features=self.in_channels)
 
+    def forward(self, x: Tensor) -> Tensor:
+        # global max pool the input feature map
+        gmp = self._gmp(x)
+        gmp = self.gmp_activation(self.d1(gmp))
+        gmp = self.gmp_activation(self.d2(gmp))
+        # global average pool the same input feature map
+        gap = self._gap(x)
+        gap = self.gap_activation(self.d1(gap))
+        gap = self.gap_activation(self.d2(gap))
+        # element-wise addition
+        s = torch.add(gmp, gap)
+        # apply activation and broadcast to input feature map size
+        s = self.out_activation(s).unsqueeze(dim=2).unsqueeze(dim=3).expand_as(x)
+        # matrix dot prod output map with input map
+        return torch.mul(x, s)
+
     @staticmethod
     def make_activation(name: str, **kwargs: dict) -> act_t:
         if name in __allowed_activations__:
             return getattr(nn, name)(**kwargs)
         else:
             raise TypeError("Activation not valid!")
-
-    def forward(self, x: Tensor) -> Tensor:
-        gmp = self._gmp(x)
-        gmp = self.gmp_activation(self.d1(gmp))
-        gmp = self.gmp_activation(self.d2(gmp))
-
-        gap = self._gap(x)
-        gap = self.gap_activation(self.d1(gap))
-        gap = self.gap_activation(self.d2(gap))
-
-        s = torch.add(gmp, gap)
-        s = self.out_activation(s).unsqueeze(dim=2).unsqueeze(dim=3).expand_as(x)  # resizing to same as input
-        return torch.mul(x, s)  # matrix dot prod
 
     @staticmethod
     def _gmp(x: Tensor) -> Tensor:
