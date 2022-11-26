@@ -8,6 +8,18 @@ from my_types import k_size_t, stride_t, pad_t, dil_t, act_t
 __allowed_activations__ = nn.modules.activation.__all__
 
 
+class MaxPool2D:
+    def __init__(self, kernel_size: k_size_t, stride: stride_t, padding: pad_t, dilation: dil_t) -> None:
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+        self.dilation = dilation
+        self.mp = nn.MaxPool2d(self.kernel_size, stride=self.stride, padding=self.padding, dilation=self.dilation)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.mp(x)
+
+
 class ChannelPool(nn.Module):
     @staticmethod
     def forward(x: Tensor) -> Tensor:
