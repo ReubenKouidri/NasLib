@@ -8,6 +8,13 @@ from my_types import k_size_t, stride_t, pad_t, dil_t, act_t
 __allowed_activations__ = nn.modules.activation.__all__
 
 
+def make_activation(name: str, **kwargs: dict) -> act_t:
+    if name in __allowed_activations__:
+        return getattr(nn, name)(**kwargs)
+    else:
+        raise TypeError("Activation not valid!")
+
+
 class MaxPool2D(nn.Module):
     def __init__(
             self,
@@ -130,9 +137,9 @@ class ChannelAttention(nn.Module):
         super(ChannelAttention, self).__init__()
         self.in_channels = in_channels
         self.se_ratio = se_ratio
-        self.gmp_activation = self.make_activation(gmp_activation, **gmp_kwargs)
-        self.gap_activation = self.make_activation(gap_activation, **gap_kwargs)
-        self.out_activation = self.make_activation(out_activation, **out_kwargs)
+        self.gmp_activation = make_activation(gmp_activation, **gmp_kwargs)
+        self.gap_activation = make_activation(gap_activation, **gap_kwargs)
+        self.out_activation = make_activation(out_activation, **out_kwargs)
         self.d1 = nn.Linear(in_features=self.in_channels, out_features=self.in_channels // self.se_ratio)
         self.d2 = nn.Linear(in_features=self.in_channels // self.se_ratio, out_features=self.in_channels)
 
@@ -151,13 +158,6 @@ class ChannelAttention(nn.Module):
         s = self.out_activation(s).unsqueeze(dim=2).unsqueeze(dim=3).expand_as(x)
         # matrix dot prod output map with input map
         return torch.mul(x, s)
-
-    @staticmethod
-    def make_activation(name: str, **kwargs: dict) -> act_t:
-        if name in __allowed_activations__:
-            return getattr(nn, name)(**kwargs)
-        else:
-            raise TypeError("Activation not valid!")
 
     @staticmethod
     def _gmp(x: Tensor) -> Tensor:
@@ -308,7 +308,7 @@ class DenseBlock(nn.Module):
         super(DenseBlock, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.relu = nn.ReLU() if relu else None
+        self.activation = nn.ReLU() if relu else None
         self.dropout = nn.Dropout(p=0.5) if dropout else None
         self.layer = nn.Linear(in_features=self.in_features, out_features=self.out_features)
 
