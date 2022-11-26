@@ -189,13 +189,14 @@ class CBAM(nn.Module):
         self.kernel_size = kernel_size
         self.spatial = spatial
         self.channel_gate = ChannelAttention(in_channels=self.in_channels, se_ratio=self.se_ratio) if channel else None
-        self.spatial_gate = SpatialAttention() if spatial else None
+        self.spatial_gate = SpatialAttention(self.kernel_size) if spatial else None
 
     def forward(self, x: Tensor) -> Tensor:
+        cb = x
         if self.channel_gate is not None:
-            x = self.channel_gate(x)
+            cb = self.channel_gate(x)
         if self.spatial_gate is not None:
-            x = self.spatial_gate(x)
+            cb = self.spatial_gate(x)
 
         return x
 
