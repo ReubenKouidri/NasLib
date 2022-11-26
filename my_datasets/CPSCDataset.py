@@ -3,11 +3,9 @@ import os
 import torch
 from torch.utils.data import Dataset
 import pandas as pd
-import pywt
 import numpy as np
 from tsmoothie import ConvolutionSmoother
 from typing import Optional, Tuple, Iterable, Union
-import matplotlib.pyplot as plt
 from wavelets import cmor, mexh
 
 
@@ -86,7 +84,7 @@ class CPSCDataset2D(CPSCDataset):
         data_path: str,
         reference_path: str,
         wavelet: Optional[str] = "mexh",
-    ):
+    ) -> None:
         super(CPSCDataset2D, self).__init__(data_path, reference_path)
         self.wavelet = wavelet if self.wavelets.__contains__(wavelet) else "mexh"
 

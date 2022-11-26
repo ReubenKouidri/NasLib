@@ -8,9 +8,9 @@ from dnasty.my_types import k_size_t, stride_t, pad_t, dil_t, act_t
 __allowed_activations__ = nn.modules.activation.__all__
 
 
-def make_activation(name: str, **kwargs: Optional[dict]) -> act_t:
+def make_activation(name: str) -> act_t:
     if name in __allowed_activations__:
-        return getattr(nn, name)(**kwargs)
+        return getattr(nn, name)()
     else:
         raise TypeError("Activation not valid!")
 
@@ -20,9 +20,9 @@ class MaxPool2D(nn.Module):
             self,
             kernel_size: k_size_t,
             stride: Optional[stride_t] = 1,
-            padding: Optional[pad_t] = 1,
+            padding: Optional[Union[pad_t, str]] = 0,
             dilation: Optional[dil_t] = 1
-    ):
+    ) -> None:
         super(MaxPool2D, self).__init__()
         self.kernel_size = kernel_size
         self.stride = stride
@@ -73,15 +73,12 @@ class SpatialAttention(nn.Module):
         super(SpatialAttention, self).__init__()
         self.kernel_size = kernel_size
         self.compress = ChannelPool()
-        self.padding = (self.kernel_size - 1) // 2
-        self.activation = nn.Sigmoid()
         self.conv = ConvBlock2D(in_channels=2, out_channels=1, kernel_size=self.kernel_size,
-                                stride=1, padding=self.padding, relu=False)
+                                stride=1, padding='same', bn=False, activation="Sigmoid")
 
     def forward(self, x: Tensor) -> Tensor:
         sa = self.compress(x)
         sa = self.conv(sa)
-        sa = self.activation(sa)
         return torch.mul(x, sa)  # element-wise
 
 
@@ -92,7 +89,7 @@ class ConvBlock2D(nn.Module):
             out_channels: int,
             kernel_size: Union[int, Tuple],
             stride: Optional[Union[int, Tuple]] = 1,
-            padding: Optional[int] = 1,
+            padding: Optional[Union[int, str]] = 0,
             dilation: Optional[int] = 1,
             groups: Optional[int] = 1,
             bias: Optional[bool] = True,
@@ -109,7 +106,7 @@ class ConvBlock2D(nn.Module):
         self.groups = groups
         self.bias = bias
         self.conv = nn.Conv2d(in_channels=self.in_channels, out_channels=self.out_channels,
-                              kernel_size=kernel_size, stride=self.stride,
+                              kernel_size=self.kernel_size, stride=self.stride,
                               padding=self.padding, dilation=self.dilation,
                               groups=self.groups, bias=self.bias)
         self.activation = make_activation(activation) if activation else None
@@ -129,17 +126,14 @@ class ChannelAttention(nn.Module):
             se_ratio: int,
             gmp_activation: Optional[str] = "ReLU",
             gap_activation: Optional[str] = "ReLU",
-            out_activation: Optional[str] = "Sigmoid",
-            gmp_kwargs: Optional[dict] = None,
-            gap_kwargs: Optional[dict] = None,
-            out_kwargs: Optional[dict] = None
+            out_activation: Optional[str] = "Sigmoid"
     ) -> None:
         super(ChannelAttention, self).__init__()
         self.in_channels = in_channels
         self.se_ratio = se_ratio
-        self.gmp_activation = make_activation(gmp_activation, **gmp_kwargs)
-        self.gap_activation = make_activation(gap_activation, **gap_kwargs)
-        self.out_activation = make_activation(out_activation, **out_kwargs)
+        self.gmp_activation = make_activation(gmp_activation)
+        self.gap_activation = make_activation(gap_activation)
+        self.out_activation = make_activation(out_activation)
         self.d1 = nn.Linear(in_features=self.in_channels, out_features=self.in_channels // self.se_ratio)
         self.d2 = nn.Linear(in_features=self.in_channels // self.se_ratio, out_features=self.in_channels)
 
@@ -204,9 +198,9 @@ class CBAM(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         cb = x
         if self.channel_gate is not None:
-            cb = self.channel_gate(x)
+            cb = self.channel_gate(cb)
         if self.spatial_gate is not None:
-            cb = self.spatial_gate(x)
+            cb = self.spatial_gate(cb)
 
         return torch.add(x, cb)
 
@@ -287,7 +281,6 @@ class ResBlock2(nn.Module):
         self.mp = MaxPool2D(self.mp_ker)
         self.conv_0 = ConvBlock2D(in_channels=self.in_channels_0, out_channels=self.out_channels_0,
                                   kernel_size=self.conv_kernel_size_0, bn=self.bn_0, activation=self.conv_act_0)
-
         self.conv_1 = ConvBlock2D(in_channels=self.out_channels_0, out_channels=self.out_channels_1,
                                   kernel_size=self.conv_kernel_size_1, bn=self.bn_0, activation=self.conv_act_1)
         self.cbam = CBAM(in_channels=self.out_channels_1, se_ratio=self.se_ratio,
