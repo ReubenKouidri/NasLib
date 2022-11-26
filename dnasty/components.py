@@ -302,20 +302,20 @@ class DenseBlock(nn.Module):
             self,
             in_features: int,
             out_features: int,
-            relu: Optional[bool] = True,
+            activation: Optional[str],
             dropout: Optional[bool] = True
     ) -> None:
         super(DenseBlock, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.activation = nn.ReLU() if relu else None
+        self.activation = make_activation(activation) if activation is not None else None
         self.dropout = nn.Dropout(p=0.5) if dropout else None
         self.layer = nn.Linear(in_features=self.in_features, out_features=self.out_features)
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.layer(x)
-        if self.relu is not None:
-            x = self.relu(x)
+        if self.activation is not None:
+            x = self.activation(x)
         if self.dropout is not None:
             x = self.dropout(x)
         return x
