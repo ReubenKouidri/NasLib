@@ -295,3 +295,27 @@ class ResBlock2(nn.Module):
         if self.cbam is not None:
             x = self.cbam(x)
         return x
+
+
+class DenseBlock(nn.Module):
+    def __init__(
+            self,
+            in_features: int,
+            out_features: int,
+            relu: Optional[bool] = True,
+            dropout: Optional[bool] = True
+    ) -> None:
+        super(DenseBlock, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.relu = nn.ReLU() if relu else None
+        self.dropout = nn.Dropout(p=0.5) if dropout else None
+        self.layer = nn.Linear(in_features=self.in_features, out_features=self.out_features)
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.layer(x)
+        if self.relu is not None:
+            x = self.relu(x)
+        if self.dropout is not None:
+            x = self.dropout(x)
+        return x
