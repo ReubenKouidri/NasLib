@@ -2,13 +2,13 @@ from typing import Tuple, Optional, Union
 import torch
 from torch import Tensor
 from torch import nn
-from my_types import k_size_t, stride_t, pad_t, dil_t, act_t
+from dnasty.my_types import k_size_t, stride_t, pad_t, dil_t, act_t
 
 
 __allowed_activations__ = nn.modules.activation.__all__
 
 
-def make_activation(name: str, **kwargs: dict) -> act_t:
+def make_activation(name: str, **kwargs: Optional[dict]) -> act_t:
     if name in __allowed_activations__:
         return getattr(nn, name)(**kwargs)
     else:
@@ -96,8 +96,8 @@ class ConvBlock2D(nn.Module):
             dilation: Optional[int] = 1,
             groups: Optional[int] = 1,
             bias: Optional[bool] = True,
-            relu: Optional[bool] = True,
-            bn: Optional[bool] = True
+            bn: Optional[bool] = True,
+            activation: str = None
     ):
         super(ConvBlock2D, self).__init__()
         self.in_channels = in_channels
@@ -112,12 +112,12 @@ class ConvBlock2D(nn.Module):
                               kernel_size=kernel_size, stride=self.stride,
                               padding=self.padding, dilation=self.dilation,
                               groups=self.groups, bias=self.bias)
-        self.relu = nn.ReLU() if relu else False
+        self.activation = make_activation(activation) if activation else None
         self.bn = nn.BatchNorm2d(self.out_channels, momentum=0.1, affine=True) if bn else False
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.conv(x)
-        x = self.relu(x) if self.relu else x
+        x = self.activation(x) if self.activation is not None else x
         x = self.bn(x) if self.bn else x
         return x
 
@@ -255,13 +255,16 @@ class ResBlock2(nn.Module):
             self,
             in_channels_0: int,
             out_channels_0: int,
-            in_channels_1: int,
             out_channels_1: int,
             conv_kernel_size_0: k_size_t,
             conv_kernel_size_1: k_size_t,
             att_kernel_size: k_size_t,
-            mp_ker: k_size_t,
+            mp_ker_size: k_size_t,
             se_ratio: int,
+            conv_act_0: Optional[str] = 'ReLU',
+            conv_act_1: Optional[str] = 'ReLU',
+            bn_0: Optional[bool] = True,
+            bn_1: Optional[bool] = True,
             cbam: Optional[bool] = True,
             spatial: Optional[bool] = True,
             channel: Optional[bool] = True
@@ -270,19 +273,23 @@ class ResBlock2(nn.Module):
         self.in_channels_0 = in_channels_0
         self.out_channels_0 = out_channels_0
         self.conv_kernel_size_0 = conv_kernel_size_0
-        self.in_channels_1 = in_channels_1
         self.out_channels_1 = out_channels_1
         self.conv_kernel_size_1 = conv_kernel_size_1
         self.att_kernel_size = att_kernel_size
-        self.mp_ker = mp_ker
+        self.mp_ker = mp_ker_size
         self.se_ratio = se_ratio
         self.spatial = spatial
         self.channel = channel
+        self.bn_0 = bn_0
+        self.bn_1 = bn_1
+        self.conv_act_0 = conv_act_0
+        self.conv_act_1 = conv_act_1
         self.mp = MaxPool2D(self.mp_ker)
         self.conv_0 = ConvBlock2D(in_channels=self.in_channels_0, out_channels=self.out_channels_0,
-                                  kernel_size=self.conv_kernel_size_0)
+                                  kernel_size=self.conv_kernel_size_0, bn=self.bn_0, activation=self.conv_act_0)
+
         self.conv_1 = ConvBlock2D(in_channels=self.out_channels_0, out_channels=self.out_channels_1,
-                                  kernel_size=self.conv_kernel_size_1)
+                                  kernel_size=self.conv_kernel_size_1, bn=self.bn_0, activation=self.conv_act_1)
         self.cbam = CBAM(in_channels=self.out_channels_1, se_ratio=self.se_ratio,
                          kernel_size=self.att_kernel_size, spatial=self.spatial,
                          channel=self.channel
