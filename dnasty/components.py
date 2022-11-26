@@ -120,10 +120,10 @@ class ChannelAttention(nn.Module):
             in_channels: int,
             se_ratio: int,
             gmp_activation: Optional[str] = "ReLU",
-            gmp_kwargs: Optional[dict] = None,
             gap_activation: Optional[str] = "ReLU",
-            gap_kwargs: Optional[dict] = None,
             out_activation: Optional[str] = "Sigmoid",
+            gmp_kwargs: Optional[dict] = None,
+            gap_kwargs: Optional[dict] = None,
             out_kwargs: Optional[dict] = None
     ) -> None:
         super(ChannelAttention, self).__init__()
@@ -248,10 +248,20 @@ class ResBlock1(nn.Module):
 
 class ResBlock2(nn.Module):
     def __init__(
-            self, in_channels_0, out_channels_0, conv_kernel_size_0, att_kernel_size, mp_ker,
-            in_channels_1, out_channels_1, conv_kernel_size_1, se_ratio,
-            spatial=False, cbam=True
-    ):
+            self,
+            in_channels_0: int,
+            out_channels_0: int,
+            in_channels_1: int,
+            out_channels_1: int,
+            conv_kernel_size_0: k_size_t,
+            conv_kernel_size_1: k_size_t,
+            att_kernel_size: k_size_t,
+            mp_ker: k_size_t,
+            se_ratio: int,
+            cbam: Optional[bool] = True,
+            spatial: Optional[bool] = True,
+            channel: Optional[bool] = True
+    ) -> None:
         super(ResBlock2, self).__init__()
         self.in_channels_0 = in_channels_0
         self.out_channels_0 = out_channels_0
@@ -263,46 +273,21 @@ class ResBlock2(nn.Module):
         self.mp_ker = mp_ker
         self.se_ratio = se_ratio
         self.spatial = spatial
+        self.channel = channel
         self.mp = MaxPool2D(self.mp_ker)
         self.conv_0 = ConvBlock2D(in_channels=self.in_channels_0, out_channels=self.out_channels_0,
-                                  kernel_size=self.conv_kernel_size_0
-                                  )
+                                  kernel_size=self.conv_kernel_size_0)
         self.conv_1 = ConvBlock2D(in_channels=self.out_channels_0, out_channels=self.out_channels_1,
-                                  kernel_size=self.conv_kernel_size_1
-                                  )
+                                  kernel_size=self.conv_kernel_size_1)
         self.cbam = CBAM(in_channels=self.out_channels_1, se_ratio=self.se_ratio,
                          kernel_size=self.att_kernel_size, spatial=self.spatial,
                          channel=self.channel
                          ) if cbam else None
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         x = self.conv_0(x)
         x = self.conv_1(x)
         x = self.mp(x)
         if self.cbam is not None:
             x = self.cbam(x)
         return x
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
