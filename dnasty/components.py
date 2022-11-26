@@ -8,16 +8,41 @@ from my_types import k_size_t, stride_t, pad_t, dil_t, act_t
 __allowed_activations__ = nn.modules.activation.__all__
 
 
-class MaxPool2D:
-    def __init__(self, kernel_size: k_size_t, stride: stride_t, padding: pad_t, dilation: dil_t) -> None:
+class MaxPool2D(nn.Module):
+    def __init__(
+            self,
+            kernel_size: k_size_t,
+            stride: Optional[stride_t] = 1,
+            padding: Optional[pad_t] = 1,
+            dilation: Optional[dil_t] = 1
+    ):
+        super(MaxPool2D, self).__init__()
         self.kernel_size = kernel_size
         self.stride = stride
         self.padding = padding
         self.dilation = dilation
-        self.mp = nn.MaxPool2d(self.kernel_size, stride=self.stride, padding=self.padding, dilation=self.dilation)
+        self.pool = nn.MaxPool2d(kernel_size=self.kernel_size, stride=self.stride,
+                                 padding=self.padding, dilation=self.dilation)
 
     def forward(self, x: Tensor) -> Tensor:
-        return self.mp(x)
+        return self.pool(x)
+
+
+class Flatten(nn.Module):
+    """
+    The -1 infers the size from the other dimension
+    dim=0 is the batch dimension
+    so we are flattening the (N, C, H, W) tensor torch (N, C*H*W)
+
+    Example:
+        x = torch.randn((2, 3, 2, 2))
+        print(x)
+        print(x.view(x.size(dim=0), -1))
+    """
+
+    @staticmethod
+    def forward(x: Tensor) -> Tensor:
+        return x.view(x.size(0), -1)
 
 
 class ChannelPool(nn.Module):
@@ -53,20 +78,6 @@ class SpatialAttention(nn.Module):
         return torch.mul(x, sa)  # element-wise
 
 
-class Flatten(nn.Module):
-    """
-    The -1 infers the size from the other dimension
-    dim=0 is the batch dimension
-    so we are flattening the (N, C, H, W) tensor torch (N, C*H*W)
-
-    Example:
-        x = torch.randn((2, 3, 2, 2))
-        print(x)
-        print(x.view(x.size(dim=0), -1))
-    """
-    @staticmethod
-    def forward(x: Tensor) -> Tensor:
-        return x.view(x.size(0), -1)
 
 
 class ConvBlock2D(nn.Module):
@@ -104,26 +115,6 @@ class ConvBlock2D(nn.Module):
         x = self.relu(x) if self.relu else x
         x = self.bn(x) if self.bn else x
         return x
-
-
-class MaxPool2D(nn.Module):
-    def __init__(
-            self,
-            size: k_size_t,
-            stride: Optional[stride_t] = 1,
-            padding: Optional[pad_t] = 1,
-            dilation: Optional[dil_t] = 1
-    ):
-        super(MaxPool2D, self).__init__()
-        self.kernel_size = size
-        self.stride = stride
-        self.padding = padding
-        self.dilation = dilation
-        self.pool = nn.MaxPool2d(kernel_size=self.kernel_size, stride=self.stride,
-                                 padding=self.padding, dilation=self.dilation)
-
-    def forward(self, x: Tensor) -> Tensor:
-        return self.pool(x)
 
 
 class ChannelAttention(nn.Module):
