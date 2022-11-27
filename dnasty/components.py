@@ -184,7 +184,7 @@ class CBAM(nn.Module):
             in_channels: int,
             se_ratio: int,
             kernel_size: Optional[k_size_t] = 4,
-            spatial: Optional[bool] = False,
+            spatial: Optional[bool] = True,
             channel: Optional[bool] = True
     ) -> None:
         super(CBAM, self).__init__()
@@ -203,98 +203,6 @@ class CBAM(nn.Module):
             cb = self.spatial_gate(cb)
 
         return torch.add(x, cb)
-
-
-class ResBlock1(nn.Module):
-    def __init__(
-            self,
-            in_channels_0: int,
-            out_channels_0: int,
-            se_ratio: int,
-            conv_kernel_size_0: k_size_t,
-            att_kernel_size: k_size_t,
-            mp_ker: Optional[k_size_t],
-            cbam: Optional[bool] = True,
-            channel: Optional[bool] = True,
-            spatial: Optional[bool] = False
-    ) -> None:
-        super(ResBlock1, self).__init__()
-        self.in_channels_0 = in_channels_0
-        self.out_channels_0 = out_channels_0
-        self.conv_kernel_size_0 = conv_kernel_size_0
-        self.att_kernel_size = att_kernel_size
-        self.mp_ker = mp_ker
-        self.se_ratio = se_ratio
-        self.mp = MaxPool2D(self.mp_ker)
-
-        self.conv_0 = ConvBlock2D(
-            in_channels=self.in_channels_0, out_channels=self.out_channels_0,
-            kernel_size=self.conv_kernel_size_0
-        )
-        self.cbam = CBAM(
-            in_channels=self.out_channels_0, se_ratio=self.se_ratio,
-            kernel_size=self.att_kernel_size, spatial=spatial, channel=channel
-        ) if cbam else None
-
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.conv_0(x)
-        x = self.mp(x)
-        if self.cbam is not None:
-            x = self.cbam(x)
-        return x
-
-
-class ResBlock2(nn.Module):
-    def __init__(
-            self,
-            in_channels_0: int,
-            out_channels_0: int,
-            out_channels_1: int,
-            conv_kernel_size_0: k_size_t,
-            conv_kernel_size_1: k_size_t,
-            att_kernel_size: k_size_t,
-            mp_ker_size: k_size_t,
-            se_ratio: int,
-            conv_act_0: Optional[str] = 'ReLU',
-            conv_act_1: Optional[str] = 'ReLU',
-            bn_0: Optional[bool] = True,
-            bn_1: Optional[bool] = True,
-            cbam: Optional[bool] = True,
-            spatial: Optional[bool] = True,
-            channel: Optional[bool] = True
-    ) -> None:
-        super(ResBlock2, self).__init__()
-        self.in_channels_0 = in_channels_0
-        self.out_channels_0 = out_channels_0
-        self.conv_kernel_size_0 = conv_kernel_size_0
-        self.out_channels_1 = out_channels_1
-        self.conv_kernel_size_1 = conv_kernel_size_1
-        self.att_kernel_size = att_kernel_size
-        self.mp_ker = mp_ker_size
-        self.se_ratio = se_ratio
-        self.spatial = spatial
-        self.channel = channel
-        self.bn_0 = bn_0
-        self.bn_1 = bn_1
-        self.conv_act_0 = conv_act_0
-        self.conv_act_1 = conv_act_1
-        self.mp = MaxPool2D(self.mp_ker)
-        self.conv_0 = ConvBlock2D(in_channels=self.in_channels_0, out_channels=self.out_channels_0,
-                                  kernel_size=self.conv_kernel_size_0, bn=self.bn_0, activation=self.conv_act_0)
-        self.conv_1 = ConvBlock2D(in_channels=self.out_channels_0, out_channels=self.out_channels_1,
-                                  kernel_size=self.conv_kernel_size_1, bn=self.bn_0, activation=self.conv_act_1)
-        self.cbam = CBAM(in_channels=self.out_channels_1, se_ratio=self.se_ratio,
-                         kernel_size=self.att_kernel_size, spatial=self.spatial,
-                         channel=self.channel
-                         ) if cbam else None
-
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.conv_0(x)
-        x = self.conv_1(x)
-        x = self.mp(x)
-        if self.cbam is not None:
-            x = self.cbam(x)
-        return x
 
 
 class DenseBlock(nn.Module):
