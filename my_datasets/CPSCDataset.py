@@ -93,6 +93,11 @@ class CPSCDataset2D(CPSCDataset):
         ecg = np.array(ecg)
         ecg_img = eval(self.wavelet)(ecg, self.wavelets[self.wavelet])
         ecg_img = torch.as_tensor(ecg_img)
+        # may only need the next line if feeding in a single tensor
+        ecg_img = torch.unsqueeze(ecg_img, dim=0).unsqueeze(dim=0)
+        print(ecg_img.shape)
+        #ecg_img = torch.unsqueeze(ecg_img, dim=0)
+        #print(ecg_img.shape)
 
         if self.test:
             return ecg_img, self.names[item]
