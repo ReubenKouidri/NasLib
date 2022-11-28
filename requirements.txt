@@ -10,3 +10,4 @@ scikit-image
 pywt
 mypy
 matplotlib
+wfdb
