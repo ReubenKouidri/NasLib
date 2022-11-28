@@ -19,7 +19,7 @@ def cmor(signal: np.ndarray, max_width: int) -> np.ndarray:
     """
     uses the complex-Morlet CWT
     :param signal: 1D ndarray of the timeseries signal to be processed
-    :param max_widths: max_width of wavepacket
+    :param max_width: max_width of wavepacket
     :return img: 2D ndarray
     """
     widths = range(1, max_width)
