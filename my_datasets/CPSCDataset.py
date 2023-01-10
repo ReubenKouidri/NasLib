@@ -20,7 +20,7 @@ class CPSCDataset(Dataset):
             normalize: Optional[bool] = True,
             smoothen: Optional[bool] = True,
             trim: Optional[bool] = True,
-            lead: Optional[Union[int, Iterable]] = 0,
+            lead: Optional[Union[int, Iterable]] = 3,
             test: Optional[bool] = False
     ):
         super(CPSCDataset, self).__init__()
@@ -32,7 +32,7 @@ class CPSCDataset(Dataset):
         self.lead = torch.tensor(lead)
         self.references = pd.read_csv(reference_path)
         self.names = self.references['Recording']
-        self.targets = torch.as_tensor(self.references['First_label'], dtype=torch.int8)  # [1-9], int8 as only 1-9
+        self.targets = torch.as_tensor(self.references['First_label'] - 1, dtype=torch.int32)  # [0-8]
 
     @staticmethod
     def _normalize(data):
@@ -84,8 +84,9 @@ class CPSCDataset2D(CPSCDataset):
         data_path: str,
         reference_path: str,
         wavelet: Optional[str] = "mexh",
+        lead: Optional[int] = 3
     ) -> None:
-        super(CPSCDataset2D, self).__init__(data_path, reference_path)
+        super(CPSCDataset2D, self).__init__(data_path, reference_path, lead)
         self.wavelet = wavelet if self.wavelets.__contains__(wavelet) else "mexh"
 
     def __getitem__(self, item: int) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -94,9 +95,9 @@ class CPSCDataset2D(CPSCDataset):
         ecg_img = eval(self.wavelet)(ecg, self.wavelets[self.wavelet])
         ecg_img = torch.as_tensor(ecg_img)
         # may only need the next line if feeding in a single tensor
-        ecg_img = torch.unsqueeze(ecg_img, dim=0).unsqueeze(dim=0)
-        print(ecg_img.shape)
-        #ecg_img = torch.unsqueeze(ecg_img, dim=0)
+        # ecg_img = torch.unsqueeze(ecg_img, dim=0).unsqueeze(dim=0)
+
+        ecg_img = torch.unsqueeze(ecg_img, dim=0)
         #print(ecg_img.shape)
 
         if self.test:
