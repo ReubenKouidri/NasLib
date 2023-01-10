@@ -15,7 +15,6 @@ k_size_t = _scalar_or_2tuple_t[int]
 pad_t = _scalar_or_2tuple_t[int]
 dil_t = _scalar_or_2tuple_t[int]
 
-#act_t = nn.modules.activation
 act_t = Callable[..., Tensor]
 batch_size_t = int
 channels_t = int
