@@ -1,6 +1,6 @@
 import numpy as np
-import functools
-from typing import Callable, Optional, Any
+import math
+from typing import Callable, Optional, Any, overload, Tuple
 import torch
 from torch.utils.data import Subset
 
@@ -49,35 +49,20 @@ class ModelSave:
         torch.save(model.state_dict(), self.path)
         self.val_loss_min = val_loss
 
-
-def split(func, k, ) -> list[tuple[Subset, Subset, Subset]]:
-    splits = []
-    dataset = func(*args, **kwargs)
-    chunk_size = len(dataset) // k
-
-    for i in range(k):
-        start_idx = i * chunk_size
-        end_idx = (i + 1) * chunk_size
-        dataset_length = len(dataset)
-
-        if end_idx != k - 1:
-            testset = Subset(dataset, indices=range(start_idx, end_idx))
-            valset = Subset(dataset, indices=range(end_idx, (end_idx + chunk_size)))
-            trainset = Subset(dataset, indices=list(list(range((end_idx + chunk_size), dataset_length)) +
-                                                    list(range(0, start_idx))))
-        else:
-            end_idx = 0
-            testset = Subset(dataset, indices=range(start_idx, len(dataset)))
-            valset = Subset(dataset, indices=range(end_idx, (end_idx + chunk_size)))
-            trainset = Subset(dataset, indices=list(range((end_idx + chunk_size), dataset_length - chunk_size)))
-
-        splits.append((trainset, valset, testset))
-
-    return splits
-
-
-
-def kfold_split(k: int = 10):
+@overload
+def kfold_split(k: int) -> Callable[..., Any]: ...
+@overload
+def kfold_split(k: int, r=Tuple[float, float, float]) -> Callable[..., Any]: ...
+def kfold_split(k: int = 10, r: Optional[Tuple[float, float, float]] = (0.8, 0.1, 0.1)) -> Callable[..., Any]:
+    """
+    :param k: the number of unique datasets that you want
+    :param r: tuple of ratios for train, test, score
+    :return: decorate function
+    TODO:
+        - update 'split' for values of r
+        - for this, implement a random split?
+        - update for different values of k
+    """
     def decorate(func: Callable[..., Any]) -> Callable[..., Any]:
         if isinstance(k, int):
             if k < 1:
@@ -87,22 +72,23 @@ def kfold_split(k: int = 10):
             splits = []
             dataset = func(*args, **kwargs)
             chunk_size = len(dataset) // k
+            dataset_length = len(dataset)
             for i in range(k):
                 start_idx = i * chunk_size
-                end_idx = (i + 1) * chunk_size
-                dataset_length = len(dataset)
-                if end_idx != k - 1:
-                    testset = Subset(dataset, indices=range(start_idx, end_idx))
-                    valset = Subset(dataset, indices=range(end_idx, (end_idx + chunk_size)))
+                if i < k - 1:
+                    end_idx = (i + 1) * chunk_size
                     trainset = Subset(dataset, indices=list(list(range((end_idx + chunk_size), dataset_length)) +
                                                             list(range(0, start_idx))))
+                    valset = Subset(dataset, indices=range(end_idx, (end_idx + chunk_size)))
+                    testset = Subset(dataset, indices=range(start_idx, end_idx))
+                    splits.append((trainset, valset, testset))
                 else:
                     end_idx = 0
                     testset = Subset(dataset, indices=range(start_idx, len(dataset)))
                     valset = Subset(dataset, indices=range(end_idx, (end_idx + chunk_size)))
-                    trainset = Subset(dataset, indices=list(range((end_idx + chunk_size), dataset_length - chunk_size)))
+                    trainset = Subset(dataset, indices=list(range((end_idx + chunk_size), start_idx)))
+                    splits.append((trainset, valset, testset))
 
-                splits.append((trainset, valset, testset))
             return splits
         return split
     return decorate
