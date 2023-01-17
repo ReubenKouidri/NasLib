@@ -1,8 +1,8 @@
 import numpy as np
-import math
 from typing import Callable, Optional, Any, overload, Tuple
 import torch
 from torch.utils.data import Subset
+import configparser
 
 
 class ModelSave:
@@ -48,6 +48,33 @@ class ModelSave:
                 f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
         torch.save(model.state_dict(), self.path)
         self.val_loss_min = val_loss
+
+
+class Trainer:
+    def __init__(self) -> None:
+        self.checkpoint = ModelSave()
+        self.stats = {}
+
+    def train(self, model: torch.utils.data.dataset): ...
+
+
+class Config:
+    def __init__(self, file_path: str) -> None:
+        self.config = configparser.ConfigParser()
+        self.config.read(file_path)
+
+        for section in self.config.sections():
+            for key, value in self.config.items(section):
+                if hasattr(self, key):
+                    raise ValueError(f"Duplicate key found: {key}")
+                setattr(self, key, value)
+
+    def get_value(self, key):
+        if hasattr(self, key):
+            return getattr(self, key)
+        else:
+            raise ValueError(f"Key not found: {key}")
+
 
 @overload
 def kfold_split(k: int) -> Callable[..., Any]: ...
