@@ -1,63 +1,74 @@
-from models import model
-import torch
+from models.model import Model
 from my_datasets.CPSCDataset import CPSCDataset2D
-from torch.utils.data import DataLoader
+from my_utils import kfold_split, Config
+from torch.utils.data import DataLoader, Dataset
 from torch.optim import SGD
 import torch.nn.functional as F
+import torch
 from typing import Any
 
 
-TRAIN_PATH = "/Users/juliettekouidri/Documents/Reuben/Projects/Python/NasLib/my_datasets/cpsc_data/Train300"
-REF_PATH = "/Users/juliettekouidri/Documents/Reuben/Projects/Python/NasLib/my_datasets/cpsc_data/reference300.csv"
-EPOCHS = 25
-BATCH_SIZE = 20
-SHUFFLE = True
-NESTEROV = True
-MOMENTUM = 0.9
-LR = 0.01
+def get_num_correct(preds, tgts):
+    return preds.argmax(dim=1).eq(tgts).sum().item()
 
 
-
-def kfold_split(dataset, k, ratio = 0.80):
-    splits = []
-    for _ in range(k):
-        train, eval, test = torch.utils.data.random_split(dataset, (ratio, round((1-ratio)/2, 1), round((1-ratio)/2, 1)))
-        splits.append([train, eval, test])
-
-    return splits
+@kfold_split(10)
+def get_dataset(datapath, ref_path):
+    return CPSCDataset2D(datapath, ref_path)
 
 
-trainset = CPSCDataset2D(TRAIN_PATH, REF_PATH)
-splits = kfold_split(trainset, 10, 0.8)
-for split in splits:
-    print(len(split[0]), " ", len(split[1]), " ", len(split[2]))
-
-
-
-
-
-"""model = model.Model()
-trainset = CPSCDataset2D(TRAIN_PATH, REF_PATH)
-trainloader = DataLoader(trainset, BATCH_SIZE, SHUFFLE)
-optimizer = SGD(model.parameters(), LR, momentum=MOMENTUM, nesterov=NESTEROV)
-
-
-for epoch in range(EPOCHS):
-    epoch_loss = 0
-    num_correct = 0
-    total = 0
-
-    for i, batch in enumerate(trainloader):
-        print("batch ", i + 1, " epoch ", epoch)
+@torch.no_grad()
+def evaluate(model: Model, valloader: DataLoader) -> (torch.float64, float):
+    model.eval()
+    eval_loss = 0
+    eval_correct = 0
+    eval_total = 0
+    for batch in valloader:
         imgs, tgts = batch[0], batch[1]
         preds = model(imgs)
-        loss = F.cross_entropy(preds, tgts)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        epoch_loss += loss.item()
-        total += imgs.size(0)
-        num_correct += preds.argmax(dim=1).eq(tgts).sum().item()
+        eval_loss += F.cross_entropy(preds, tgts).item()
+        eval_correct += get_num_correct(preds, tgts)
+        eval_total += len(imgs)
 
-    print("end of epoch ", epoch, ". Loss: ", epoch_loss, ". Num correct: ", num_correct, "/", total)
-"""
+    return loss, eval_correct / eval_total
+
+
+splits = get_dataset(TRAIN_PATH, REF_PATH)
+split_accuracies = []
+for i, split in enumerate(splits):
+    model = Model()
+    trainset, valset, testset = split
+    trainloader = DataLoader(trainset, BATCH_SIZE, SHUFFLE)
+    valloader = DataLoader(valset, batch_size=len(valset))
+    optimizer = SGD(model.parameters(), LR, momentum=MOMENTUM, nesterov=NESTEROV)
+
+    epoch_accuracies = []
+
+    for epoch in range(EPOCHS):
+        model.train()
+        train_loss = 0
+        train_correct = 0
+        total = 0
+
+        for i, batch in enumerate(trainloader):
+            print("batch ", i + 1, " epoch ", epoch)
+            imgs, tgts = batch[0], batch[1]
+            preds = model(imgs)
+            loss = F.cross_entropy(preds, tgts)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+            train_correct += get_num_correct(preds, tgts)
+            total += imgs.size(0)
+
+        eval_loss, eval_accuracy = evaluate(model, valloader)
+
+        print("end of epoch ", epoch,
+              "Train loss: ", train_loss,
+              "\nTrain accuracy : ", train_correct / total,
+              "\nEval loss: ", eval_loss,
+              "\nEval accuracy: ", eval_accuracy)
+
+        epoch_accuracies.append(eval_accuracy)
+    split_accuracies.append(epoch_accuracies)
