@@ -32,7 +32,7 @@ class CPSCDataset(Dataset):
         self.lead = torch.tensor(lead)
         self.references = pd.read_csv(reference_path)
         self.names = self.references['Recording']
-        self.targets = torch.as_tensor(self.references['First_label'] - 1, dtype=torch.int32)  # [0-8]
+        self.targets = torch.as_tensor((self.references['First_label'] - 1)[:len(os.listdir(self.data_path))], dtype=torch.int64)  # [0-8]. !type long
 
     @staticmethod
     def _normalize(data):

@@ -1,5 +1,5 @@
 import random
-from typing import Any, Type, Self, Tuple, Optional, Iterable, TextIO
+from typing import Any, Type, Self, Optional, Iterable, TextIO
 
 
 def random_mutation(size: int) -> int:
@@ -90,7 +90,3 @@ class Genome:
 
     @classmethod
     def mutate(cls): ...
-
-
-
-

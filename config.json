@@ -1,0 +1,13 @@
+{"Train":
+  {
+    "file_path": "/Users/juliettekouidri/Documents/Reuben/Projects/Python/NasLib/my_datasets/cpsc_data/Test100",
+    "reference_path": "/Users/juliettekouidri/Documents/Reuben/Projects/Python/NasLib/my_datasets/cpsc_data/reference300.csv",
+    "loss_fc": "cross_entropy",
+    "epochs": "1",
+    "batch_size": "20",
+    "shuffle": "true",
+    "nesterov": "true",
+    "momentum": "0.9",
+    "lr": "0.001"
+  }
+}

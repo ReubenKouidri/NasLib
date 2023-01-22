@@ -1,11 +1,13 @@
 from models.model import Model
 from my_datasets.CPSCDataset import CPSCDataset2D
-from my_utils import kfold_split, Config
+from my_utils import kfold_split
+import torch
 from torch.utils.data import DataLoader, Dataset
 from torch.optim import SGD
 import torch.nn.functional as F
-import torch
-from typing import Any
+from config import Config
+import os
+import json
 
 
 def get_num_correct(preds, tgts):
@@ -33,18 +35,32 @@ def evaluate(model: Model, valloader: DataLoader) -> (torch.float64, float):
     return loss, eval_correct / eval_total
 
 
-splits = get_dataset(TRAIN_PATH, REF_PATH)
+def load(json_file):
+    with open(json_file) as fp:
+        return json.load(fp)
+
+
+local = os.getcwd()
+JSON = os.path.join(local, "config.json")
+#config = Config(load(JSON))
+
+params = load(JSON)
+print(sorted(params["Train"].keys()))
+
+
+"""splits = get_dataset(config.get_value("Train", "file_path"), config.reference_path)
 split_accuracies = []
+
 for i, split in enumerate(splits):
     model = Model()
     trainset, valset, testset = split
-    trainloader = DataLoader(trainset, BATCH_SIZE, SHUFFLE)
+    trainloader = DataLoader(trainset, config.get_value("Train", "batch_size"), config.shuffle)
     valloader = DataLoader(valset, batch_size=len(valset))
-    optimizer = SGD(model.parameters(), LR, momentum=MOMENTUM, nesterov=NESTEROV)
+    optimizer = SGD(model.parameters(), config.lr, momentum=config.momentum, nesterov=config.nesterov)
 
     epoch_accuracies = []
 
-    for epoch in range(EPOCHS):
+    for epoch in range(config.epochs):
         model.train()
         train_loss = 0
         train_correct = 0
@@ -72,3 +88,4 @@ for i, split in enumerate(splits):
 
         epoch_accuracies.append(eval_accuracy)
     split_accuracies.append(epoch_accuracies)
+"""

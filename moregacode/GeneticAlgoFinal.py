@@ -95,11 +95,7 @@ def train(model, optimizer, criterion, trainloader, device):
         optimizer.zero_grad()
         images = images.to(device)
         labels = labels.to(device)
-        # images = images.cuda(gpu_id, non_blocking=True)
-        # labels = labels.cuda(gpu_id, non_blocking=True)
-
         pred = model(images)
-
         loss = criterion(pred, labels)
         loss.backward()
 
@@ -113,24 +109,21 @@ def train(model, optimizer, criterion, trainloader, device):
 
 @torch.no_grad()
 def evaluate(model, criterion, valloader, device):
+    model.eval()
     total_loss = 0.0
     epoch_steps = 0
     total = 0
     correct = 0
 
-    model.eval()
     for inputs, labels in valloader:
         inputs = inputs.to(device)
         labels = labels.to(device)
-
         outputs = model(inputs)
-
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
-        correct += (predicted == labels).sum().item()
-
+        correct += get_num_correct(predicted, labels)
+        #correct += (predicted == labels).sum().item()
         loss = criterion(outputs, labels)
-
         total_loss += loss.item()
         epoch_steps += 1
 

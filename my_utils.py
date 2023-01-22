@@ -58,24 +58,6 @@ class Trainer:
     def train(self, model: torch.utils.data.dataset): ...
 
 
-class Config:
-    def __init__(self, file_path: str) -> None:
-        self.config = configparser.ConfigParser()
-        self.config.read(file_path)
-
-        for section in self.config.sections():
-            for key, value in self.config.items(section):
-                if hasattr(self, key):
-                    raise ValueError(f"Duplicate key found: {key}")
-                setattr(self, key, value)
-
-    def get_value(self, key):
-        if hasattr(self, key):
-            return getattr(self, key)
-        else:
-            raise ValueError(f"Key not found: {key}")
-
-
 @overload
 def kfold_split(k: int) -> Callable[..., Any]: ...
 @overload
