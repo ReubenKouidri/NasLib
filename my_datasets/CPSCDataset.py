@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 from tsmoothie import ConvolutionSmoother
 from typing import Optional, Tuple, Iterable, Union
-from wavelets import cmor, mexh
 
 
 class CPSCDataset(Dataset):
