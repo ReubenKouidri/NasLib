@@ -4,7 +4,7 @@ from dnasty.components import ConvBlock2D, DenseBlock, Flatten, Tensor, CBAM
 from my_datasets.CPSCDataset import CPSCDataset, CPSCDataset2D
 import matplotlib.pyplot as plt
 
-DATA_PATH = "../my_datasets/cpsc_data/Train300"
+DATA_PATH = "../my_datasets/cpsc_data/train300"
 REF_PATH = "../my_datasets/cpsc_data/reference300.csv"
 
 

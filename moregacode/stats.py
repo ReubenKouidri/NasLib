@@ -73,7 +73,3 @@ class StatisticsReporter:
         """
         path = f'{directory}{filepath}/best_{n}_genomes_xxx_{crossover_mode}.pt'
         torch.save(self.best_genomes(n), path)
-
-
-history = StatisticsReporter()
-

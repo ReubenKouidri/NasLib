@@ -122,7 +122,6 @@ def evaluate(model, criterion, valloader, device):
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
         correct += get_num_correct(predicted, labels)
-        #correct += (predicted == labels).sum().item()
         loss = criterion(outputs, labels)
         total_loss += loss.item()
         epoch_steps += 1
@@ -144,16 +143,12 @@ def test(model, testloader, device):
         outputs = model(images)
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
-        correct += (predicted == labels).sum().item()
+        correct += get_num_correct(predicted, labels)
 
     return correct
 
 
 def assess_genome(genome):
-    """
-        :param genome: genome
-        :returns: the trained model, ready to be evaluated on test set
-    """
     model = create_model(genome)  # express chromosomes
     trainset, testset = load_data()
 
