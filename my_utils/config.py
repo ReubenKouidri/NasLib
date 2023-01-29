@@ -1,5 +1,6 @@
 from collections import abc
 from keyword import iskeyword
+import json
 
 
 def convert(item, T):
@@ -13,6 +14,10 @@ def convert(item, T):
 
 class Config:
     """ object providing read-only access to configurations """
+    @staticmethod
+    def load_json(json_file):
+        with open(json_file) as fp:
+            return json.load(fp)
 
     def __new__(cls, arg):
         if isinstance(arg, abc.Mapping):
@@ -22,7 +27,8 @@ class Config:
         else:
             return arg
 
-    def __init__(self, mapping):
+    def __init__(self, file_path):
+        mapping = self.load_json(file_path)
         self.__data = {}
         for key, value in mapping.items():
             if iskeyword(key):
