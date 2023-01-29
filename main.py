@@ -1,66 +1,46 @@
 from models.model import Model
-from my_datasets.CPSCDataset import CPSCDataset2D
-from my_utils import kfold_split
-import torch
-from torch.utils.data import DataLoader, Dataset
-from torch.optim import SGD
+from my_utils.my_utils import get_num_correct, load_dataset
+from my_utils.training import train, evaluate
 import torch.nn.functional as F
-from config import Config
+from torch.utils.data import DataLoader
+from torch.optim import SGD
+from my_utils.config import Config
 import os
-import json
-
-
-def get_num_correct(preds, tgts):
-    return preds.argmax(dim=1).eq(tgts).sum().item()
-
-
-@kfold_split(10)
-def get_dataset(datapath, ref_path):
-    return CPSCDataset2D(datapath, ref_path)
-
-
-@torch.no_grad()
-def evaluate(model: Model, valloader: DataLoader) -> (torch.float64, float):
-    model.eval()
-    eval_loss = 0
-    eval_correct = 0
-    eval_total = 0
-    for batch in valloader:
-        imgs, tgts = batch[0], batch[1]
-        preds = model(imgs)
-        eval_loss += F.cross_entropy(preds, tgts).item()
-        eval_correct += get_num_correct(preds, tgts)
-        eval_total += len(imgs)
-
-    return loss, eval_correct / eval_total
-
-
-def load(json_file):
-    with open(json_file) as fp:
-        return json.load(fp)
 
 
 local = os.getcwd()
-JSON = os.path.join(local, "config.json")
-#config = Config(load(JSON))
-
-params = load(JSON)
-print(sorted(params["Train"].keys()))
+config_path = os.path.join(local, "config.json")
+config = Config(config_path)
 
 
-"""splits = get_dataset(config.get_value("Train", "file_path"), config.reference_path)
 split_accuracies = []
+datasets = load_dataset(config.train.data_path, config.train.reference_path)
 
-for i, split in enumerate(splits):
+
+for i, dataset in enumerate(datasets):
     model = Model()
-    trainset, valset, testset = split
-    trainloader = DataLoader(trainset, config.get_value("Train", "batch_size"), config.shuffle)
-    valloader = DataLoader(valset, batch_size=len(valset))
-    optimizer = SGD(model.parameters(), config.lr, momentum=config.momentum, nesterov=config.nesterov)
+    train_set, val_set, test_set = dataset
+    trainloader = DataLoader(train_set, config.train.batch_size, config.train.shuffle)
+    valloader = DataLoader(val_set, batch_size=len(val_set))
+    optimizer = SGD(model.parameters(), config.train.lr, momentum=config.train.momentum, nesterov=config.train.nesterov)
+    criterion = config.train.criterion
+    device = config.train.device
+    epochs = config.train.epochs
 
-    epoch_accuracies = []
+    train_losses = []
+    train_accuracies = []
+    eval_losses = []
+    eval_accuracies = []
+    for epoch in epochs:
+        train_loss, train_accuracy = train(model=model, optimizer=optimizer, criterion=criterion, trainloader=trainloader, device=device)
+        train_losses.append(train_loss)
+        train_accuracies.append(train_accuracy)
 
-    for epoch in range(config.epochs):
+        eval_loss, eval_accuracy = evaluate(model, criterion, valloader, device)
+        eval_losses.append(eval_loss)
+        eval_accuracies.append(eval_accuracy)
+
+    for epoch in range(int(config.train.epochs)):
         model.train()
         train_loss = 0
         train_correct = 0
@@ -88,4 +68,3 @@ for i, split in enumerate(splits):
 
         epoch_accuracies.append(eval_accuracy)
     split_accuracies.append(epoch_accuracies)
-"""
