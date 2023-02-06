@@ -1,25 +1,20 @@
 from collections import abc
 from keyword import iskeyword
 import json
+from typing import Union, Any, List, Type, TypeVar
 
 
-def convert(item, T):
-    try:
-        item = eval(T)(item)
-    except ValueError:
-        pass
-
-    return item
+TConfig = TypeVar("TConfig", bound="Config")
 
 
 class Config:
     """ object providing read-only access to configurations """
     @staticmethod
-    def load_json(json_file):
+    def load_json(json_file: str) -> dict:
         with open(json_file) as fp:
             return json.load(fp)
 
-    def __new__(cls, arg):
+    def __new__(cls, arg: Union[abc.MutableSequence, Any]) -> Union[TConfig, List[TConfig], Any]:
         if isinstance(arg, abc.Mapping):
             return super().__new__(cls)
         elif isinstance(arg, abc.MutableSequence):
@@ -27,7 +22,7 @@ class Config:
         else:
             return arg
 
-    def __init__(self, file_path):
+    def __init__(self, file_path: str) -> None:
         mapping = self.load_json(file_path)
         self.__data = {}
         for key, value in mapping.items():
@@ -35,7 +30,7 @@ class Config:
                 key += '_'
             self.__data[key] = value
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Union[TConfig, Any]:
         """
         This method is called when an attribute is accessed on an object,
         but it is not found in the object's state dictionary
@@ -48,7 +43,7 @@ class Config:
             return Config.build(self.__data[name])
 
     @classmethod
-    def build(cls, obj):
+    def build(cls: Type[TConfig], obj: Any) -> Union[TConfig, List[TConfig], Any]:
         """
         - If obj instance is a mapping then return a Config obj by passing it directly to constructor
         - This is because an abc.Mapping is, or can be converted to a dict directly
