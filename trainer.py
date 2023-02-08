@@ -1,21 +1,34 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from my_utils.config import Config
 
 
 class Trainer:
-    def __init__(self, model, dataloaders, loss_fn, optimizer, metric_fn, device, checkpoint_dir):
+    def __init__(self, model: torch.nn.Module, config: Config, checkpoint_dir: str) -> None:
         self.model = model
+        self.config = config
+        self.checkpoint_dir = checkpoint_dir
+
         self.dataloaders = dataloaders
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         self.metric_fn = metric_fn
         self.device = device
-        self.checkpoint_dir = checkpoint_dir
         self.training_loss = []
         self.validation_loss = []
         self.training_metrics = []
         self.validation_metrics = []
+
+    def _load_data(self, split=True):
+        """
+        load dataset
+        option for kfold split
+        return tuple of datasets
+        """
+        ...
+
+
 
     def train(self, num_epochs):
         for epoch in range(num_epochs):
