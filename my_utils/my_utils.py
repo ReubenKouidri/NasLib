@@ -2,8 +2,8 @@ import numpy as np
 from typing import Callable, Any, overload, Tuple, List
 import torch
 from torch.utils.data import Subset
-import json
 import os
+import functools
 from my_datasets.CPSCDataset import CPSCDataset2D
 
 
@@ -16,22 +16,13 @@ def split(k: int) -> Callable[..., Any]: ...
 
 
 def split(k: int = 10) -> Callable[..., Any]:
-    """
-    :param k: the number of unique datasets that you want
-    :param r: tuple of ratios for train, test, score
-    :return: decorate function
-    TODO:
-        - update 'split' for values of r
-        - for this, implement a random split?
-        - update for different values of k
-    """
-
-    def decorate(func: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         if isinstance(k, int):
             if k < 1:
                 raise ValueError("k must be larger than 1 in k-fold split")
 
-        def split(*args, **kwargs) -> List[Tuple[Subset, Subset, Subset]]:
+        @functools.wraps(func)
+        def inner(*args, **kwargs) -> List[Tuple[Subset, ...]]:
             splits = []
             dataset = func(*args, **kwargs)
             chunk_size = len(dataset) // k
@@ -57,13 +48,10 @@ def split(k: int = 10) -> Callable[..., Any]:
                     splits.append((trainset, valset, testset))
 
             return splits
-
-        return split
-
-    return decorate
+        return inner
+    return decorator
 
 
-@split(10)
 def load_dataset(fp, rp) -> CPSCDataset2D:
     if not os.path.exists(fp):
         fp = os.path.join(os.getcwd(), fp)
