@@ -11,11 +11,14 @@ from typing import Optional, Tuple, Iterable, Union
 class CPSCDataset(Dataset):
     AR_classes = {"SR": 1, "AF": 2, "I-AVB": 3, "LBBB": 4, "RBBB": 5, "PAC": 6, "PVC": 7, "STD": 8, "STE": 9}
     LENGTH = 4 * 500  # 4s at sampling frequency of 500Hz
+    base = os.getcwd()
+    data_dir = "my_datasets/cpsc_data/test100"
+    ref_dir = "my_datasets/cpsc_data/reference300.csv"
 
     def __init__(
             self,
-            data_path: str,
-            reference_path: str,
+            data_path: Optional[str] = None,
+            reference_path: Optional[str] = None,
             normalize: Optional[bool] = True,
             smoothen: Optional[bool] = True,
             trim: Optional[bool] = True,
@@ -24,12 +27,12 @@ class CPSCDataset(Dataset):
     ):
         super(CPSCDataset, self).__init__()
         self.test = test
-        self.data_path = data_path
+        self.data_path = data_path if data_path is not None else os.path.join(self.base, self.data_dir)
+        self.references = pd.read_csv(reference_path) if reference_path else pd.read_csv(os.path.join(self.base, self.ref_dir))
         self.normalize = normalize
         self.trim = trim
         self.smoothen = smoothen
         self.lead = torch.tensor(lead)
-        self.references = pd.read_csv(reference_path)
         self.names = self.references['Recording']
         self.targets = torch.as_tensor((self.references['First_label'] - 1)[:len(os.listdir(self.data_path))], dtype=torch.int64)  # [0-8]. !type long
 
