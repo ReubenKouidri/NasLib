@@ -3,6 +3,9 @@ from skimage.transform import resize
 import numpy as np
 
 
+__all__ = ["mexh", "cmor"]
+
+
 def mexh(signal: np.ndarray, max_width: int) -> np.ndarray:
     """
     :param signal: 1D ndarray of the timeseries signal to be processed
