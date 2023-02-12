@@ -1,7 +1,7 @@
 import torch
 import csv
 import numpy as np
-from my_utils import get_num_correct
+from my_utils.my_utils import get_num_correct
 from typing import Tuple
 
 
