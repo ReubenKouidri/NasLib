@@ -2,12 +2,18 @@
   {
     "data_path": "my_datasets/cpsc_data/train300",
     "reference_path": "my_datasets/cpsc_data/reference300.csv",
-    "loss_fc": "cross_entropy",
+    "criterion": "CrossEntropyLoss",
     "epochs": "1",
     "batch_size": "20",
     "shuffle": "True",
     "nesterov": "True",
     "momentum": "0.9",
-    "lr": "0.001"
+    "lr": "0.001",
+    "device": "cpu"
+  },
+  "eval":
+  {
+    "batch_size": "None",
+    "workers": 1
   }
 }
