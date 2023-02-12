@@ -6,7 +6,11 @@ import pandas as pd
 import numpy as np
 from tsmoothie import ConvolutionSmoother
 from typing import Optional, Tuple, Iterable, Union
-from my_utils.wavelets import *
+import importlib
+
+
+wavelets_module_name = "my_utils.wavelets"
+wavelets_module = importlib.import_module(wavelets_module_name)
 
 
 class CPSCDataset(Dataset):
@@ -91,12 +95,12 @@ class CPSCDataset2D(CPSCDataset):
     ) -> None:
         super(CPSCDataset2D, self).__init__(data_path, reference_path, lead)
         self.wavelet = wavelet if self.wavelets.__contains__(wavelet) else "mexh"
+        self.wavelet_fnc = getattr(wavelets_module, self.wavelet)
 
     def __getitem__(self, item: int) -> Tuple[torch.Tensor, torch.Tensor]:
         ecg, tgt = CPSCDataset.__getitem__(self, item)
         ecg = np.array(ecg)
-        # TODO: ammend globals?
-        ecg_img = globals().get(self.wavelet)(ecg, self.wavelets[self.wavelet])
+        ecg_img = self.wavelet_fnc(ecg, self.wavelets[self.wavelet])
         ecg_img = torch.as_tensor(ecg_img)
         ecg_img = torch.unsqueeze(ecg_img, dim=0)
 
