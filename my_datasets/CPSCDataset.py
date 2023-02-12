@@ -6,12 +6,13 @@ import pandas as pd
 import numpy as np
 from tsmoothie import ConvolutionSmoother
 from typing import Optional, Tuple, Iterable, Union
+from my_utils.wavelets import *
 
 
 class CPSCDataset(Dataset):
     AR_classes = {"SR": 1, "AF": 2, "I-AVB": 3, "LBBB": 4, "RBBB": 5, "PAC": 6, "PVC": 7, "STD": 8, "STE": 9}
     LENGTH = 4 * 500  # 4s at sampling frequency of 500Hz
-    base = os.getcwd()
+    base = ".."
     data_dir = "my_datasets/cpsc_data/test100"
     ref_dir = "my_datasets/cpsc_data/reference300.csv"
 
@@ -83,8 +84,8 @@ class CPSCDataset2D(CPSCDataset):
 
     def __init__(
         self,
-        data_path: str,
-        reference_path: str,
+        data_path: Optional[str] = None,
+        reference_path: Optional[str] = None,
         wavelet: Optional[str] = "mexh",
         lead: Optional[int] = 3
     ) -> None:
@@ -94,13 +95,10 @@ class CPSCDataset2D(CPSCDataset):
     def __getitem__(self, item: int) -> Tuple[torch.Tensor, torch.Tensor]:
         ecg, tgt = CPSCDataset.__getitem__(self, item)
         ecg = np.array(ecg)
-        ecg_img = eval(self.wavelet)(ecg, self.wavelets[self.wavelet])
+        # TODO: ammend globals?
+        ecg_img = globals().get(self.wavelet)(ecg, self.wavelets[self.wavelet])
         ecg_img = torch.as_tensor(ecg_img)
-        # may only need the next line if feeding in a single tensor
-        # ecg_img = torch.unsqueeze(ecg_img, dim=0).unsqueeze(dim=0)
-
         ecg_img = torch.unsqueeze(ecg_img, dim=0)
-        #print(ecg_img.shape)
 
         if self.test:
             return ecg_img, self.names[item]
