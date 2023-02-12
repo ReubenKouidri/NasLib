@@ -3,9 +3,7 @@ import warnings
 from torch.utils.data import Subset
 from typing import MutableSequence, Sequence, Generic, TypeVar, Callable, Any
 import functools
-from my_utils.my_utils import load_dataset
 random.seed(9834275)
-
 
 T_co = TypeVar('T_co', covariant=True)
 
@@ -31,7 +29,7 @@ def split_dataset(dataset: Generic[T_co], ratio: Sequence, n: int) -> tuple:
     return tuple(split(dataset, ratio) for _ in range(n))
 
 
-def ksplit(k: int, ratio: Sequence) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def ksplit(k: int, ratio: Sequence) -> Callable[..., Any]:
     if ratio[0] < ratio[1] or ratio[0] < ratio[2]:
         message = f"splits may not be correct: (train, eval, test) = {ratio}"
         warnings.warn(message)
@@ -50,7 +48,7 @@ def ksplit(k: int, ratio: Sequence) -> Callable[[Callable[..., Any]], Callable[.
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
         def inner(*args, **kwargs) -> tuple:
-            dataset = load_dataset(*args, **kwargs)
+            dataset = func(*args, **kwargs)
             return split_dataset(dataset, ratio, k)
         return inner
     return decorator
