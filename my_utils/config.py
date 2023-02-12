@@ -1,18 +1,18 @@
 from collections import abc
 from keyword import iskeyword
-import json
 from typing import Union, Any, List, Type, TypeVar
 
 
-TConfig = TypeVar("TConfig", bound="Config")
+TConfig = TypeVar("TConfig")
+
+
+class ConfigObj:
+    def __init__(self, value):
+        self.value = value
 
 
 class Config:
     """ object providing read-only access to configurations """
-    @staticmethod
-    def load_json(json_file: str) -> dict:
-        with open(json_file) as fp:
-            return json.load(fp)
 
     def __new__(cls, arg: Union[abc.MutableSequence, Any]) -> Union[TConfig, List[TConfig], Any]:
         if isinstance(arg, abc.Mapping):
@@ -22,15 +22,30 @@ class Config:
         else:
             return arg
 
-    def __init__(self, file_path: str) -> None:
-        mapping = self.load_json(file_path)
-        self.__data = {}
-        for key, value in mapping.items():
-            if iskeyword(key):
-                key += '_'
-            self.__data[key] = value
+    def convert_to_int(self, d: dict) -> dict:
+        for key, value in d.items():
+            if isinstance(value, dict):
+                d[key] = self.convert_to_int(value)
+            elif isinstance(value, str):
+                try:
+                    d[key] = int(value)
+                except ValueError:
+                    try:
+                        d[key] = float(value)
+                    except ValueError:
+                        pass
+        return d
 
-    def __getattr__(self, name: str) -> Union[TConfig, Any]:
+    def __init__(self, mapping) -> None:
+        self.__data = self.convert_to_int(dict(mapping))
+
+    def __getattr__(self, name):
+        if hasattr(self.__data, name):
+            return getattr(self.__data, name)
+        else:
+            return Config(self.__data[name])
+
+    '''def __getattr__(self, name: str) -> Union[TConfig, Any]:
         """
         This method is called when an attribute is accessed on an object,
         but it is not found in the object's state dictionary
@@ -38,12 +53,12 @@ class Config:
         Else builds a new Config object
         """
         if hasattr(self.__data, name):
-            return getattr(self.__data, name)  # check and return attribute from __data instance
+            return getattr(self.__data, name)
         else:
-            return Config.build(self.__data[name])
+            return Config.build(self.__data[name])'''
 
-    @classmethod
-    def build(cls: Type[TConfig], obj: Any) -> Union[TConfig, List[TConfig], Any]:
+    '''@classmethod
+    def build(cls, obj: Any) -> Union[TConfig, List[TConfig], Any]:
         """
         - If obj instance is a mapping then return a Config obj by passing it directly to constructor
         - This is because an abc.Mapping is, or can be converted to a dict directly
@@ -56,4 +71,4 @@ class Config:
         elif isinstance(obj, abc.MutableSequence):
             return [cls.build(item) for item in obj]
         else:
-            return obj
+            return obj'''
