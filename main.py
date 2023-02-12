@@ -1,20 +1,29 @@
 from models.model import Model
-from my_utils.my_utils import get_num_correct, load_dataset
+from my_utils.my_utils import get_num_correct, load_datasets
 from my_utils.training import train, evaluate
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.optim import SGD
+import torch.nn as nn
 from my_utils.config import Config
 import os
+import json
 
 
 local = os.getcwd()
 config_path = os.path.join(local, "config.json")
-config = Config(config_path)
 
+
+def load_json(json_file: str) -> dict:
+    with open(json_file) as fp:
+        return json.load(fp)
+
+
+config = Config(load_json(config_path))
 
 split_accuracies = []
-datasets = load_dataset(config.train.data_path, config.train.reference_path)
+
+datasets = load_datasets(config.train.data_path, config.train.reference_path)
 
 
 for i, dataset in enumerate(datasets):
@@ -23,7 +32,7 @@ for i, dataset in enumerate(datasets):
     trainloader = DataLoader(train_set, config.train.batch_size, config.train.shuffle)
     valloader = DataLoader(val_set, batch_size=len(val_set))
     optimizer = SGD(model.parameters(), config.train.lr, momentum=config.train.momentum, nesterov=config.train.nesterov)
-    criterion = config.train.criterion
+    criterion = nn.CrossEntropyLoss()
     device = config.train.device
     epochs = config.train.epochs
 
@@ -31,7 +40,7 @@ for i, dataset in enumerate(datasets):
     train_accuracies = []
     eval_losses = []
     eval_accuracies = []
-    for epoch in epochs:
+    for epoch in range(epochs):
         train_loss, train_accuracy = train(model=model, optimizer=optimizer, criterion=criterion, trainloader=trainloader, device=device)
         train_losses.append(train_loss)
         train_accuracies.append(train_accuracy)
