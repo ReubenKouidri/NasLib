@@ -2,9 +2,9 @@ import numpy as np
 from typing import Callable, Any, overload, Tuple, List
 import torch
 from torch.utils.data import Subset
-import os
 import functools
 from my_datasets.CPSCDataset import CPSCDataset2D
+from my_utils.ksplit import ksplit
 
 
 def get_num_correct(preds, tgts):
@@ -52,13 +52,13 @@ def split(k: int = 10) -> Callable[..., Any]:
     return decorator
 
 
-def load_dataset(fp, rp) -> CPSCDataset2D:
-    if not os.path.exists(fp):
-        fp = os.path.join(os.getcwd(), fp)
-    if not os.path.exists(rp):
-        rp = os.path.join(os.getcwd(), rp)
+def load_dataset(data_path, ref_path) -> CPSCDataset2D:
+    return CPSCDataset2D(data_path, ref_path)
 
-    return CPSCDataset2D(fp, rp)
+
+@ksplit(10, (0.8, 0.1, 0.1))
+def load_datasets(data_path, ref_path):
+    return load_dataset(data_path, ref_path)
 
 
 class ModelSave:
