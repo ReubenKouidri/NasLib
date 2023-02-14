@@ -16,18 +16,23 @@ class Config:
         else:
             return arg
 
+    @staticmethod
+    def convert_type(value: str):
+        try:
+            value = int(value)
+        except ValueError:
+            try:
+                value = float(value)
+            except ValueError:
+                pass
+        return value
+
     def convert(self, d: dict) -> dict:
         for key, value in d.items():
             if isinstance(value, dict):
                 d[key] = self.convert(value)
             elif isinstance(value, str):
-                try:
-                    d[key] = int(value)
-                except ValueError:
-                    try:
-                        d[key] = float(value)
-                    except ValueError:
-                        pass
+                d[key] = self.convert_type(value)
         return d
 
     def __init__(self, mapping) -> None:
