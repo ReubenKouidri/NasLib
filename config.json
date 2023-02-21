@@ -1,7 +1,5 @@
 {"train":
   {
-    "data_path": "my_datasets/cpsc_data/train300",
-    "reference_path": "my_datasets/cpsc_data/reference300.csv",
     "criterion": "CrossEntropyLoss",
     "epochs": "1",
     "batch_size": "20",
@@ -13,7 +11,12 @@
   },
   "eval":
   {
-    "batch_size": "None",
-    "workers": 1
+    "batch_size": "1",
+    "workers": "1"
+  },
+  "data":
+  {
+    "data_path": "my_datasets/cpsc_data/train300",
+    "reference_path": "my_datasets/cpsc_data/reference300.csv"
   }
 }
