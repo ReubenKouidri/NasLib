@@ -1,12 +1,12 @@
 {"train":
   {
     "criterion": "CrossEntropyLoss",
-    "epochs": "1",
+    "epochs": "10",
     "batch_size": "20",
     "shuffle": "True",
     "nesterov": "True",
     "momentum": "0.9",
-    "lr": "0.001",
+    "lr": "0.01",
     "device": "cpu"
   },
   "eval":
