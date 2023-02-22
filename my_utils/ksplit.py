@@ -35,7 +35,7 @@ def split(dataset, ratio) -> tuple:
     return train_set, eval_set, test_set
 
 
-def split_dataset(dataset: Generic[T_co], n: int, ratio: Sequence[float, int]) -> tuple[tuple]:
+def split_dataset(dataset: Generic[T_co], n: int, ratio: Sequence) -> tuple[tuple]:
     return tuple(split(dataset, ratio) for _ in range(n))
 
 
