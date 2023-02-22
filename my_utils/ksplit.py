@@ -1,10 +1,10 @@
 import random
 import warnings
-from torch.utils.data import Subset
-from typing import MutableSequence, Sequence, Generic, TypeVar, Callable, Any
+from torch.utils.data import Subset, Dataset
+from typing import MutableSequence, TypeVar, Callable, Any
+import collections.abc as abc
 import functools
 from my_datasets.CPSCDataset import CPSCDataset2D
-
 random.seed(9834275)
 
 T_co = TypeVar('T_co', covariant=True)
@@ -35,12 +35,12 @@ def split(dataset, ratio) -> tuple:
     return train_set, eval_set, test_set
 
 
-def split_dataset(dataset: Generic[T_co], n: int, ratio: Sequence) -> tuple[tuple]:
+def split_dataset(dataset: abc.Sequence, n: int, ratio: abc.Sequence) -> tuple[tuple]:
     return tuple(split(dataset, ratio) for _ in range(n))
 
 
 # decorator to apply kfold split on a load_dataset() function
-def ksplit(k: int, ratio: Sequence) -> Callable[..., Any]:
+def ksplit(k: int, ratio: abc.Sequence) -> Callable[..., Any]:
     if ratio[0] < ratio[1] or ratio[0] < ratio[2]:
         message = f"splits may not be correct: (train, eval, test) = {ratio}"
         warnings.warn(message)
