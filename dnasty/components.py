@@ -2,13 +2,13 @@ from typing import Tuple, Union
 import torch
 from torch import Tensor
 from torch import nn
-from dnasty.my_types import k_size_t, stride_t, pad_t, dil_t, act_t
+from dnasty.my_types import k_size_t, stride_t, pad_t, dil_t
 
 
 __allowed_activations__ = nn.modules.activation.__all__
 
 
-def make_activation(name: str) -> act_t:
+def make_activation(name: str) -> nn.Module:
     if name in __allowed_activations__:
         return getattr(nn, name)()
     else:
@@ -18,10 +18,10 @@ def make_activation(name: str) -> act_t:
 class MaxPool2D(nn.Module):
     def __init__(
             self,
-            kernel_size: k_size_t,
-            stride: stride_t | None = 1,
-            padding: Union[pad_t, str] | None = 0,
-            dilation: dil_t | None = 1
+            kernel_size: int | tuple = None,
+            stride:  Union[int, tuple] | None = 1,
+            padding: Union[int, tuple, str] | None = 0,
+            dilation:  Union[int, tuple] | None = 1
     ) -> None:
         super(MaxPool2D, self).__init__()
         self.kernel_size = kernel_size
@@ -92,7 +92,7 @@ class ChannelPool(nn.Module):
 
 
 class SpatialAttention(nn.Module):
-    def __init__(self, kernel_size: k_size_t) -> None:
+    def __init__(self, kernel_size: Union[int, tuple]) -> None:
         super(SpatialAttention, self).__init__()
         self.kernel_size = kernel_size
         self.compress = ChannelPool()
@@ -132,20 +132,13 @@ class ConvBlock2D(nn.Sequential):
                               kernel_size=self.kernel_size, stride=self.stride,
                               padding=self.padding, dilation=self.dilation,
                               groups=self.groups, bias=self.bias)
-        self.add_module("conv", self.conv)
-        if self.activation:
-            self.add_module(f"{activation}", )
         self.activation = make_activation(activation) if activation else None
         self.bn = nn.BatchNorm2d(self.out_channels, momentum=0.1, affine=True) if bn else False
-
-    def build(self) -> None:
-        self.add_module("Conv")
-
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.conv(x)
-        x = self.activation(x) if self.activation is not None else x
-        x = self.bn(x) if self.bn else x
-        return x
+        self.add_module("conv", self.conv)
+        if self.activation:
+            self.add_module(f"{activation}", self.activation)
+        if self.bn:
+            self.add_module("batch_norm", self.bn)
 
 
 class ChannelAttention(nn.Module):
