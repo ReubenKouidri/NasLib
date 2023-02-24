@@ -2,7 +2,7 @@ from typing import Tuple, Union
 import torch
 from torch import Tensor
 from torch import nn
-from dnasty.my_types import k_size_t, stride_t, pad_t, dil_t
+from collections import OrderedDict
 
 
 __allowed_activations__ = nn.modules.activation.__all__
@@ -14,6 +14,96 @@ def make_activation(name: str) -> nn.Module:
     else:
         raise TypeError("Activation not valid!")
 
+
+'''class DenseBlockOld(nn.Module):
+    def __init__(
+            self,
+            in_features: int,
+            out_features: int,
+            activation: str | None,
+            dropout: bool | None = True
+    ) -> None:
+        super(DenseBlockOld, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.activation = make_activation(activation) if activation is not None else None
+        self.dropout = nn.Dropout(p=0.5) if dropout else None
+        self.layer = nn.Linear(in_features=self.in_features, out_features=self.out_features)
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.layer(x)
+        if self.activation is not None:
+            x = self.activation(x)
+        if self.dropout is not None:
+            x = self.dropout(x)
+        return x
+
+
+class ChannelAttentionOld(nn.Module):
+    def __init__(
+            self,
+            in_channels: int,
+            se_ratio: int,
+            gmp_activation: str | None = "ReLU",
+            gap_activation: str | None = "ReLU",
+            out_activation: str | None = "Sigmoid"
+    ) -> None:
+        super(ChannelAttentionOld, self).__init__()
+        self.in_channels = in_channels
+        self.se_ratio = se_ratio
+        self.gmp_activation = make_activation(gmp_activation)
+        self.gap_activation = make_activation(gap_activation)
+        self.out_activation = make_activation(out_activation)
+        self.d1 = nn.Linear(in_features=self.in_channels, out_features=self.in_channels // self.se_ratio)
+        self.d2 = nn.Linear(in_features=self.in_channels // self.se_ratio, out_features=self.in_channels)
+
+    def forward(self, x: Tensor) -> Tensor:
+        gmp = self._gmp(x)  # global max pool the input feature map
+        gmp = self.gmp_activation(self.d1(gmp))
+        gmp = self.gmp_activation(self.d2(gmp))
+
+        gap = self._gap(x)  # global average pool the same input feature map
+        gap = self.gap_activation(self.d1(gap))
+        gap = self.gap_activation(self.d2(gap))
+
+        s = torch.add(gmp, gap)  # element-wise addition
+        s = self.out_activation(s).unsqueeze(dim=2).unsqueeze(dim=3).expand_as(
+            x)  # apply activation and broadcast to input feature map size
+        return torch.mul(x, s)  # matrix dot prod output map with input map
+
+    @staticmethod
+    def _gmp(x: Tensor) -> Tensor:
+        """
+        Applies global max pooling operation on a 4D tensor.
+
+        Args:
+            x (Tensor): Input tensor of shape (N, C, H, W).
+
+        Returns:
+            Tensor: Tensor of shape (N, C) representing the output of global max pooling operation applied
+                    on the input tensor x.
+
+        Example::
+            import torch
+
+            input_size = (1, 3, 5, 5)
+            x = torch.randn(input_size)
+            output = gmp(x)
+
+            print(output.size)  # torch.Size([1, 3])
+        """
+        mp = nn.AdaptiveMaxPool2d(output_size=1)(x)
+        return mp.squeeze(dim=3).squeeze(dim=2)
+
+    @staticmethod
+    def _gap(x: Tensor) -> Tensor:
+        """
+        Applied global average pooling operation on a 4D tensor
+        See global max pool (_gmp) for more details
+        """
+        av = nn.AdaptiveAvgPool2d(output_size=1)(x)
+        return av.squeeze(dim=3).squeeze(dim=2)
+'''
 
 class MaxPool2D(nn.Module):
     def __init__(
@@ -137,62 +227,24 @@ class ConvBlock2D(nn.Sequential):
 
 
 class ChannelAttention(nn.Module):
-    def __init__(
-            self,
-            in_channels: int,
-            se_ratio: int,
-            gmp_activation: str | None = "ReLU",
-            gap_activation: str | None = "ReLU",
-            out_activation: str | None = "Sigmoid"
-    ) -> None:
-        super(ChannelAttention, self).__init__()
-        self.in_channels = in_channels
-        self.se_ratio = se_ratio
-        self.gmp_activation = make_activation(gmp_activation)
-        self.gap_activation = make_activation(gap_activation)
-        self.out_activation = make_activation(out_activation)
-        self.d1 = nn.Linear(in_features=self.in_channels, out_features=self.in_channels // self.se_ratio)
-        self.d2 = nn.Linear(in_features=self.in_channels // self.se_ratio, out_features=self.in_channels)
+    def __init__(self, in_channels: int, se_ratio: int) -> None:
+        super().__init__()
+        self.gmp = nn.AdaptiveMaxPool2d(output_size=1)
+        self.gap = nn.AdaptiveAvgPool2d(output_size=1)
+        self.fc = nn.Sequential(
+            nn.Linear(in_channels, in_channels // se_ratio),
+            nn.ReLU(),
+            nn.Linear(in_channels // se_ratio, in_channels),
+            nn.ReLU()
+        )
 
     def forward(self, x: Tensor) -> Tensor:
-        # global max pool the input feature map
-        gmp = self._gmp(x)
-        gmp = self.gmp_activation(self.d1(gmp))
-        gmp = self.gmp_activation(self.d2(gmp))
-        # global average pool the same input feature map
-        gap = self._gap(x)
-        gap = self.gap_activation(self.d1(gap))
-        gap = self.gap_activation(self.d2(gap))
-        # element-wise addition
-        s = torch.add(gmp, gap)
-        # apply activation and broadcast to input feature map size
-        s = self.out_activation(s).unsqueeze(dim=2).unsqueeze(dim=3).expand_as(x)
-        # matrix dot prod output map with input map
-        return torch.mul(x, s)
-
-    @staticmethod
-    def _gmp(x: Tensor) -> Tensor:
-        """
-        TODO: correct docstring and add more description
-        global max pool
-        :param x: Tensor of form (batch_size, channels, height, width)
-        :return: Tensor of form (batch_size, channels)
-        """
-        mp = nn.AdaptiveMaxPool2d(output_size=1)(x)
-        mp = mp.squeeze(dim=3).squeeze(dim=2)
-        return mp
-
-    @staticmethod
-    def _gap(x: Tensor) -> Tensor:
-        """
-        TODO: correct docstring and add more description
-        global average pool on input Tensor
-        :param x: 4D Tensor of feature maps
-        :return: 2D reduced Tensor of average pooled feature maps
-        """
-        av = nn.AdaptiveAvgPool2d(output_size=1)(x)
-        av = av.squeeze(dim=3).squeeze(dim=2)
-        return av
+        gmp = self.gmp(x).squeeze(dim=-1).squeeze(dim=-1)
+        gap = self.gap(x).squeeze(dim=-1).squeeze(dim=-1)
+        mp = self.fc(gmp)
+        ap = self.fc(gap)
+        s = nn.Sigmoid()(torch.add(mp, ap))
+        return x * s.unsqueeze(dim=-1).unsqueeze(dim=-1)  # .expand_as(x)
 
 
 class CBAM(nn.Module):
@@ -200,7 +252,7 @@ class CBAM(nn.Module):
             self,
             in_channels: int,
             se_ratio: int,
-            kernel_size: k_size_t | None = 4,
+            kernel_size: Union[int, tuple] | None = 4,
             spatial: bool | None = True,
             channel: bool | None = True
     ) -> None:
@@ -213,16 +265,12 @@ class CBAM(nn.Module):
         self.spatial_gate = SpatialAttention(self.kernel_size) if spatial else None
 
     def forward(self, x: Tensor) -> Tensor:
-        cb = x
-        if self.channel_gate is not None:
-            cb = self.channel_gate(cb)
-        if self.spatial_gate is not None:
-            cb = self.spatial_gate(cb)
-
-        return torch.add(x, cb)
+        cb = self.channel_gate(x) if self.channel_gate else x
+        cb = self.spatial_gate(cb) if self.spatial_gate else cb
+        return cb + x
 
 
-class DenseBlock(nn.Module):
+class DenseBlock(nn.Sequential):
     def __init__(
             self,
             in_features: int,
@@ -230,17 +278,8 @@ class DenseBlock(nn.Module):
             activation: str | None,
             dropout: bool | None = True
     ) -> None:
-        super(DenseBlock, self).__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.activation = make_activation(activation) if activation is not None else None
-        self.dropout = nn.Dropout(p=0.5) if dropout else None
-        self.layer = nn.Linear(in_features=self.in_features, out_features=self.out_features)
-
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.layer(x)
-        if self.activation is not None:
-            x = self.activation(x)
-        if self.dropout is not None:
-            x = self.dropout(x)
-        return x
+        super(DenseBlock, self).__init__(
+            nn.Linear(in_features, out_features),
+            make_activation(activation) if activation else None,
+            nn.Dropout(p=0.5) if dropout else None
+        )
