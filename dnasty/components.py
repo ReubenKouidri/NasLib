@@ -2,7 +2,6 @@ from typing import Tuple, Union
 import torch
 from torch import Tensor
 from torch import nn
-from collections import OrderedDict
 
 
 __allowed_activations__ = nn.modules.activation.__all__
