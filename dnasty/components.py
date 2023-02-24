@@ -83,12 +83,7 @@ class ChannelPool(nn.Module):
     def forward(x: Tensor) -> Tensor:
         # torch.max returns type torch.return_types.max: first tensor contains the max values
         # whereas the second tensor is an index tensor showing which input channel the max value occurred in
-        max_channel_pool = torch.max(x, dim=1)[0]
-        max_channel_pool = max_channel_pool.unsqueeze(dim=1)
-        av_channel_pool = torch.mean(x, dim=1)
-        av_channel_pool = av_channel_pool.unsqueeze(dim=1)
-        return torch.cat((av_channel_pool, max_channel_pool), dim=1)
-        #return torch.cat((torch.max(x, 1)[0].unsqueeze(1), torch.mean(x, 1).unsqueeze(1)), dim=1)
+        return torch.cat((torch.max(x, dim=1)[0].unsqueeze(dim=1), torch.mean(x, dim=1).unsqueeze(dim=1)), dim=1)
 
 
 class SpatialAttention(nn.Module):
