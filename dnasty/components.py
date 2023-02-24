@@ -1,4 +1,4 @@
-from typing import Tuple, Optional, Union
+from typing import Tuple, Union
 import torch
 from torch import Tensor
 from torch import nn
@@ -19,9 +19,9 @@ class MaxPool2D(nn.Module):
     def __init__(
             self,
             kernel_size: k_size_t,
-            stride: Optional[stride_t] = 1,
-            padding: Optional[Union[pad_t, str]] = 0,
-            dilation: Optional[dil_t] = 1
+            stride: stride_t | None = 1,
+            padding: Union[pad_t, str] | None = 0,
+            dilation: dil_t | None = 1
     ) -> None:
         super(MaxPool2D, self).__init__()
         self.kernel_size = kernel_size
@@ -53,9 +53,34 @@ class Flatten(nn.Module):
 
 
 class ChannelPool(nn.Module):
+    """
+    A PyTorch module that performs channel pooling on an input tensor.
+    The input tensor should have shape `(N, C, H, W)`, where `N` is the batch size,
+    `C` is the number of channels, `H` is the height, and `W` is the width.
+
+    Channel pooling computes the maximum and average values over the channel dimension
+    separately, and concatenates the results along the channel dimension to produce
+    an output tensor of shape `(N, 2, H, W)`, i.e. a description of both max and mean
+    features along channel dim.
+
+    Args:
+        None
+
+    Returns:
+        A PyTorch module that performs channel pooling on an input tensor.
+
+    Example::
+
+        # Create a ChannelPool module
+        channel_pool = ChannelPool()
+
+        # Apply channel pooling to an input tensor
+        x = torch.randn(16, 64, 32, 32)
+        y = channel_pool(x)  # y.shape == torch.Size([16, 2, 32, 32])
+    """
+
     @staticmethod
     def forward(x: Tensor) -> Tensor:
-        # (N, C, H, W) => channel dim = 1
         # torch.max returns type torch.return_types.max: first tensor contains the max values
         # whereas the second tensor is an index tensor showing which input channel the max value occurred in
         max_channel_pool = torch.max(x, dim=1)[0]
@@ -63,9 +88,7 @@ class ChannelPool(nn.Module):
         av_channel_pool = torch.mean(x, dim=1)
         av_channel_pool = av_channel_pool.unsqueeze(dim=1)
         return torch.cat((av_channel_pool, max_channel_pool), dim=1)
-
         #return torch.cat((torch.max(x, 1)[0].unsqueeze(1), torch.mean(x, 1).unsqueeze(1)), dim=1)
-        # concatenates tensors to gain description of both max and mean features
 
 
 class SpatialAttention(nn.Module):
@@ -82,19 +105,19 @@ class SpatialAttention(nn.Module):
         return torch.mul(x, sa)  # element-wise
 
 
-class ConvBlock2D(nn.Module):
+class ConvBlock2D(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
             out_channels: int,
             kernel_size: Union[int, Tuple],
-            stride: Optional[Union[int, Tuple]] = 1,
-            padding: Optional[Union[int, str]] = 0,
-            dilation: Optional[int] = 1,
-            groups: Optional[int] = 1,
-            bias: Optional[bool] = True,
-            bn: Optional[bool] = True,
-            activation: str = None
+            stride: Union[int, Tuple] | None = 1,
+            padding: Union[int, str] | None = 0,
+            dilation: int | None = 1,
+            groups: int | None = 1,
+            bias: bool | None = True,
+            bn: bool | None = True,
+            activation: str | None = None
     ):
         super(ConvBlock2D, self).__init__()
         self.in_channels = in_channels
@@ -109,8 +132,14 @@ class ConvBlock2D(nn.Module):
                               kernel_size=self.kernel_size, stride=self.stride,
                               padding=self.padding, dilation=self.dilation,
                               groups=self.groups, bias=self.bias)
+        self.add_module("conv", self.conv)
+        if self.activation:
+            self.add_module(f"{activation}", )
         self.activation = make_activation(activation) if activation else None
         self.bn = nn.BatchNorm2d(self.out_channels, momentum=0.1, affine=True) if bn else False
+
+    def build(self) -> None:
+        self.add_module("Conv")
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.conv(x)
@@ -124,9 +153,9 @@ class ChannelAttention(nn.Module):
             self,
             in_channels: int,
             se_ratio: int,
-            gmp_activation: Optional[str] = "ReLU",
-            gap_activation: Optional[str] = "ReLU",
-            out_activation: Optional[str] = "Sigmoid"
+            gmp_activation: str | None = "ReLU",
+            gap_activation: str | None = "ReLU",
+            out_activation: str | None = "Sigmoid"
     ) -> None:
         super(ChannelAttention, self).__init__()
         self.in_channels = in_channels
@@ -183,9 +212,9 @@ class CBAM(nn.Module):
             self,
             in_channels: int,
             se_ratio: int,
-            kernel_size: Optional[k_size_t] = 4,
-            spatial: Optional[bool] = True,
-            channel: Optional[bool] = True
+            kernel_size: k_size_t | None = 4,
+            spatial: bool | None = True,
+            channel: bool | None = True
     ) -> None:
         super(CBAM, self).__init__()
         self.in_channels = in_channels
@@ -210,8 +239,8 @@ class DenseBlock(nn.Module):
             self,
             in_features: int,
             out_features: int,
-            activation: Optional[str],
-            dropout: Optional[bool] = True
+            activation: str | None,
+            dropout: bool | None = True
     ) -> None:
         super(DenseBlock, self).__init__()
         self.in_features = in_features
