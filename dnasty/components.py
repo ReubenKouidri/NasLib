@@ -105,6 +105,7 @@ class ChannelAttentionOld(nn.Module):
         return av.squeeze(dim=3).squeeze(dim=2)
 '''
 
+
 class MaxPool2D(nn.Module):
     def __init__(
             self,
