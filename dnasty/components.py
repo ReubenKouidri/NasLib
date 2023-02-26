@@ -14,108 +14,17 @@ def make_activation(name: str) -> nn.Module:
         raise TypeError("Activation not valid!")
 
 
-'''class DenseBlockOld(nn.Module):
-    def __init__(
-            self,
-            in_features: int,
-            out_features: int,
-            activation: str | None,
-            dropout: bool | None = True
-    ) -> None:
-        super(DenseBlockOld, self).__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.activation = make_activation(activation) if activation is not None else None
-        self.dropout = nn.Dropout(p=0.5) if dropout else None
-        self.layer = nn.Linear(in_features=self.in_features, out_features=self.out_features)
-
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.layer(x)
-        if self.activation is not None:
-            x = self.activation(x)
-        if self.dropout is not None:
-            x = self.dropout(x)
-        return x
-
-
-class ChannelAttentionOld(nn.Module):
-    def __init__(
-            self,
-            in_channels: int,
-            se_ratio: int,
-            gmp_activation: str | None = "ReLU",
-            gap_activation: str | None = "ReLU",
-            out_activation: str | None = "Sigmoid"
-    ) -> None:
-        super(ChannelAttentionOld, self).__init__()
-        self.in_channels = in_channels
-        self.se_ratio = se_ratio
-        self.gmp_activation = make_activation(gmp_activation)
-        self.gap_activation = make_activation(gap_activation)
-        self.out_activation = make_activation(out_activation)
-        self.d1 = nn.Linear(in_features=self.in_channels, out_features=self.in_channels // self.se_ratio)
-        self.d2 = nn.Linear(in_features=self.in_channels // self.se_ratio, out_features=self.in_channels)
-
-    def forward(self, x: Tensor) -> Tensor:
-        gmp = self._gmp(x)  # global max pool the input feature map
-        gmp = self.gmp_activation(self.d1(gmp))
-        gmp = self.gmp_activation(self.d2(gmp))
-
-        gap = self._gap(x)  # global average pool the same input feature map
-        gap = self.gap_activation(self.d1(gap))
-        gap = self.gap_activation(self.d2(gap))
-
-        s = torch.add(gmp, gap)  # element-wise addition
-        s = self.out_activation(s).unsqueeze(dim=2).unsqueeze(dim=3).expand_as(
-            x)  # apply activation and broadcast to input feature map size
-        return torch.mul(x, s)  # matrix dot prod output map with input map
-
-    @staticmethod
-    def _gmp(x: Tensor) -> Tensor:
-        """
-        Applies global max pooling operation on a 4D tensor.
-
-        Args:
-            x (Tensor): Input tensor of shape (N, C, H, W).
-
-        Returns:
-            Tensor: Tensor of shape (N, C) representing the output of global max pooling operation applied
-                    on the input tensor x.
-
-        Example::
-            import torch
-
-            input_size = (1, 3, 5, 5)
-            x = torch.randn(input_size)
-            output = gmp(x)
-
-            print(output.size)  # torch.Size([1, 3])
-        """
-        mp = nn.AdaptiveMaxPool2d(output_size=1)(x)
-        return mp.squeeze(dim=3).squeeze(dim=2)
-
-    @staticmethod
-    def _gap(x: Tensor) -> Tensor:
-        """
-        Applied global average pooling operation on a 4D tensor
-        See global max pool (_gmp) for more details
-        """
-        av = nn.AdaptiveAvgPool2d(output_size=1)(x)
-        return av.squeeze(dim=3).squeeze(dim=2)
-'''
-
-
 class MaxPool2D(nn.Module):
     def __init__(
             self,
+            stride: Union[int, tuple] | None,
             kernel_size: int | tuple = None,
-            stride:  Union[int, tuple] | None = 1,
             padding: Union[int, tuple, str] | None = 0,
             dilation:  Union[int, tuple] | None = 1
     ) -> None:
         super(MaxPool2D, self).__init__()
         self.kernel_size = kernel_size
-        self.stride = stride
+        self.stride = stride if stride else kernel_size
         self.padding = padding
         self.dilation = dilation
         self.pool = nn.MaxPool2d(kernel_size=self.kernel_size, stride=self.stride,
@@ -128,7 +37,7 @@ class MaxPool2D(nn.Module):
 class Flatten(nn.Module):
     """
     The -1 infers the size from the other dimension
-    dim=0 is the batch dimension
+    dim=0 is the batch dimension,
     so we are flattening the (N, C, H, W) tensor torch (N, C*H*W)
 
     Example:
@@ -153,8 +62,7 @@ class ChannelPool(nn.Module):
     an output tensor of shape `(N, 2, H, W)`, i.e. a description of both max and mean
     features along channel dim.
 
-    Args:
-        None
+    Args: None
 
     Returns:
         A PyTorch module that performs channel pooling on an input tensor.
