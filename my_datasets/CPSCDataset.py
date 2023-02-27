@@ -1,11 +1,12 @@
 from scipy.io import loadmat
 import os
 import torch
+from torch import Tensor
 from torch.utils.data import Dataset
 import pandas as pd
 import numpy as np
 from tsmoothie import ConvolutionSmoother
-from typing import Optional, Tuple, Iterable, Union
+from typing import Iterable, Union, Any
 import importlib
 
 
@@ -22,13 +23,13 @@ class CPSCDataset(Dataset):
 
     def __init__(
             self,
-            data_path: Optional[str] = None,
-            reference_path: Optional[str] = None,
-            normalize: Optional[bool] = True,
-            smoothen: Optional[bool] = True,
-            trim: Optional[bool] = True,
-            lead: Optional[Union[int, Iterable]] = 3,
-            test: Optional[bool] = False
+            data_path: str | None = None,
+            reference_path: str | None = None,
+            normalize: bool | None = True,
+            smoothen: bool | None = True,
+            trim: bool | None = True,
+            lead: Union[int, Iterable] | None = 3,
+            test: bool | None = False
     ):
         super(CPSCDataset, self).__init__()
         self.test = test
@@ -55,11 +56,10 @@ class CPSCDataset(Dataset):
         smoother.smooth(data)
         return smoother.smooth_data[0]
 
-    def __getitem__(self, item: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        r"""
+    def __getitem__(self, item: int) -> tuple[Tensor, Any, Any] | tuple[Tensor, Any]:
+        """
             - ECG is cut to 2000 data points (4 seconds) (if True)
             - ECG is smoothed (if True)
-            - returns a tuple: (img, target)
         """
         file_path = os.path.join(self.data_path, self.references.iloc[item, 0])
         data = loadmat(f'{file_path}.mat')
@@ -73,13 +73,10 @@ class CPSCDataset(Dataset):
         ecg_data = torch.as_tensor(base, dtype=torch.float32)
 
         if self.test:
-            return ecg_data, self.names[item]
+            return ecg_data, self.targets[item], self.names[item]
         return ecg_data, self.targets[item]
 
     def __len__(self):
-        """
-            Length of the dataset
-        """
         return len([name for name in os.listdir(self.data_path) if os.path.isfile(os.path.join(self.data_path, name))])
 
 
@@ -88,22 +85,18 @@ class CPSCDataset2D(CPSCDataset):
 
     def __init__(
         self,
-        data_path: Optional[str] = None,
-        reference_path: Optional[str] = None,
-        wavelet: Optional[str] = "mexh",
-        lead: Optional[int] = 3
+        data_path: str | None = None,
+        reference_path: str | None = None,
+        wavelet: str | None = "mexh",
+        lead: int | None = 3
     ) -> None:
         super(CPSCDataset2D, self).__init__(data_path, reference_path, lead)
         self.wavelet = wavelet if self.wavelets.__contains__(wavelet) else "mexh"
         self.wavelet_fnc = getattr(wavelets_module, self.wavelet)
 
-    def __getitem__(self, item: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        ecg, tgt = CPSCDataset.__getitem__(self, item)
-        ecg = np.array(ecg)
+    def __getitem__(self, item: int) -> tuple[Any, tuple[Tensor, ...]]:
+        out = super().__getitem__(item)
+        ecg = np.array(out[0])
         ecg_img = self.wavelet_fnc(ecg, self.wavelets[self.wavelet])
-        ecg_img = torch.as_tensor(ecg_img)
-        ecg_img = torch.unsqueeze(ecg_img, dim=0)
-
-        if self.test:
-            return ecg_img, self.names[item]
-        return ecg_img, self.targets[item]
+        ecg_img = torch.as_tensor(ecg_img).unsqueeze(dim=0)
+        return ecg_img, out[1:]
