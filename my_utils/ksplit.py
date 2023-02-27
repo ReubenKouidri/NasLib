@@ -1,6 +1,6 @@
 import random
 import warnings
-from torch.utils.data import Subset, Dataset
+from torch.utils.data import Subset
 from typing import MutableSequence, TypeVar, Callable, Any
 import collections.abc as abc
 import functools
@@ -35,7 +35,7 @@ def split(dataset, ratio) -> tuple:
     return train_set, eval_set, test_set
 
 
-def split_dataset(dataset: abc.Sequence, n: int, ratio: abc.Sequence) -> tuple[tuple]:
+def split_dataset(dataset: CPSCDataset2D, n: int, ratio: abc.Sequence) -> tuple[tuple]:
     return tuple(split(dataset, ratio) for _ in range(n))
 
 
