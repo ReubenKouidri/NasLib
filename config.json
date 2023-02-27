@@ -6,8 +6,7 @@
     "shuffle": "True",
     "nesterov": "True",
     "momentum": "0.9",
-    "lr": "0.01",
-    "device": "cpu"
+    "lr": "0.0005"
   },
   "eval":
   {
