@@ -16,7 +16,7 @@ wavelets_module = importlib.import_module(wavelets_module_name)
 
 class CPSCDataset(Dataset):
     AR_classes = {"SR": 1, "AF": 2, "I-AVB": 3, "LBBB": 4, "RBBB": 5, "PAC": 6, "PVC": 7, "STD": 8, "STE": 9}
-    LENGTH = 4 * 500  # 4s at sampling frequency of 500Hz
+    length = 4 * 500  # 4s at sampling frequency of 500Hz
     base = ".."
     data_dir = "my_datasets/cpsc_data/test100"
     ref_dir = "my_datasets/cpsc_data/reference300.csv"
@@ -38,7 +38,7 @@ class CPSCDataset(Dataset):
         self.normalize = normalize
         self.trim = trim
         self.smoothen = smoothen
-        self.lead = torch.tensor(lead)
+        self.lead = torch.tensor(lead - 1)  # leads in [1,12] hence -1 indexes correctly
         self.names = self.references['Recording']
         self.targets = torch.as_tensor((self.references['First_label'] - 1)[:len(os.listdir(self.data_path))], dtype=torch.int64)  # [0-8]. !type long
 
@@ -63,10 +63,10 @@ class CPSCDataset(Dataset):
         """
         file_path = os.path.join(self.data_path, self.references.iloc[item, 0])
         data = loadmat(f'{file_path}.mat')
-        ecg_data = data['ECG']['data'][0][0][self.lead - 1]  # leads in [1,12] hence -1 indexes correctly
+        ecg_data = data['ECG']['data'][0][0][self.lead]
 
         step = 2
-        base = self._trim_data(ecg_data, self.LENGTH, step) if self.trim else ecg_data
+        base = self._trim_data(ecg_data, self.length, step) if self.trim else ecg_data
         base = self._normalize(base) if self.normalize else base
         base = self._smoothen(base) if self.smoothen else base
 
