@@ -18,7 +18,7 @@ def load_datasets(data_path, ref_path):
     return load_2d_dataset(data_path, ref_path)
 
 
-def split(dataset, ratio) -> tuple:
+def split(dataset, ratio: tuple) -> tuple:
     size = len(dataset)
     indices = list(range(size))
     random.shuffle(indices)
@@ -35,8 +35,8 @@ def split(dataset, ratio) -> tuple:
     return train_set, eval_set, test_set
 
 
-def split_dataset(dataset: CPSCDataset2D, n: int, ratio: abc.Sequence) -> tuple[tuple]:
-    return tuple(split(dataset, ratio) for _ in range(n))
+def split_dataset(dataset: CPSCDataset2D, ksplit: tuple[int, tuple]) -> tuple[tuple]:
+    return tuple(split(dataset, ksplit[1]) for _ in range(ksplit[0]))
 
 
 # decorator to apply kfold split on a load_dataset() function
