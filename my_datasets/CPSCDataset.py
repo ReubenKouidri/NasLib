@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 import pandas as pd
 import numpy as np
 from tsmoothie import ConvolutionSmoother
-from typing import Iterable, Union, Any
+from typing import Iterable, Union, Any, Tuple, List
 import importlib
 
 
@@ -34,13 +34,21 @@ class CPSCDataset(Dataset):
         super(CPSCDataset, self).__init__()
         self.test = test
         self.data_path = data_path if data_path is not None else os.path.join(self.base, self.data_dir)
-        self.references = pd.read_csv(reference_path) if reference_path else pd.read_csv(os.path.join(self.base, self.ref_dir))
+        self.references = pd.read_csv(reference_path).fillna(0) if reference_path else\
+            pd.read_csv(os.path.join(self.base, self.ref_dir)).fillna(0)
+        self.names = self.references['Recording']
+        self.references["First_label"] = torch.as_tensor(self.references["First_label"] - 1, dtype=torch.long)
+        self.references["Second_label"] = torch.as_tensor(self.references["Second_label"], dtype=torch.long)
+        for label in self.references["Second_label"]:
+            label -= 1 if label > 0 else label
+        self.references["Third_label"] = torch.as_tensor(self.references["Third_label"], dtype=torch.long)
+        for label in self.references["Third_label"]:
+            label -= 1 if label > 0 else label
         self.normalize = normalize
         self.trim = trim
         self.smoothen = smoothen
         self.lead = torch.tensor(lead - 1)  # leads in [1,12] hence -1 indexes correctly
-        self.names = self.references['Recording']
-        self.targets = torch.as_tensor((self.references['First_label'] - 1)[:len(os.listdir(self.data_path))], dtype=torch.int64)  # [0-8]. !type long
+        #self.targets = torch.as_tensor((self.references['First_label'] - 1)[:len(os.listdir(self.data_path))], dtype=torch.int64)  # [0-8]. !type long
 
     @staticmethod
     def _normalize(data):
@@ -61,8 +69,8 @@ class CPSCDataset(Dataset):
             - ECG is cut to 2000 data points (4 seconds) (if True)
             - ECG is smoothed (if True)
         """
-        file_path = os.path.join(self.data_path, self.references.iloc[item, 0])
-        data = loadmat(f'{file_path}.mat')
+        file_name = os.path.join(self.data_path, self.references.iloc[item, 0])
+        data = loadmat(f'{file_name}.mat')
         ecg_data = data['ECG']['data'][0][0][self.lead]
 
         step = 2
@@ -73,8 +81,10 @@ class CPSCDataset(Dataset):
         ecg_data = torch.as_tensor(base, dtype=torch.float32)
 
         if self.test:
-            return ecg_data, self.targets[item], self.names[item]
-        return ecg_data, self.targets[item]
+            return ecg_data, torch.as_tensor(self.references.iloc[item, 1:], dtype=torch.int64)
+            # return ecg_data, self.targets[item], self.names[item]
+        return ecg_data, torch.as_tensor(self.references.iloc[item, 1], dtype=torch.int64)
+        # return ecg_data, self.targets[item]
 
     def __len__(self):
         return len([name for name in os.listdir(self.data_path) if os.path.isfile(os.path.join(self.data_path, name))])
@@ -94,9 +104,8 @@ class CPSCDataset2D(CPSCDataset):
         self.wavelet = wavelet if self.wavelets.__contains__(wavelet) else "mexh"
         self.wavelet_fnc = getattr(wavelets_module, self.wavelet)
 
-    def __getitem__(self, item: int) -> tuple[Any, tuple[Tensor, ...]]:
-        out = super().__getitem__(item)
-        ecg = np.array(out[0])
-        ecg_img = self.wavelet_fnc(ecg, self.wavelets[self.wavelet])
+    def __getitem__(self, item: int) -> tuple[Any, Any, Any] | tuple[Any, Any]:
+        ecg, ref = super().__getitem__(item)
+        ecg_img = self.wavelet_fnc(np.array(ecg), self.wavelets[self.wavelet])
         ecg_img = torch.as_tensor(ecg_img).unsqueeze(dim=0)
-        return ecg_img, out[1:]
+        return ecg_img, ref
