@@ -164,9 +164,10 @@ class Trainer:
                 print("\nvalidating...\n")
                 if eval_loader:
                     v_loss, v_acc = self._eval(model, eval_loader, criterion)
-                    self.track_metrics(tr_loss, tr_acc, v_loss, v_acc, rep, epoch)
+                    #self.track_metrics(tr_loss, tr_acc, v_loss, v_acc, rep, epoch)
                 else:
-                    self.track_metrics(tr_loss, tr_acc, rep, epoch)
+                    pass
+                    #self.track_metrics(tr_loss, tr_acc, rep, epoch)
 
             if test_loader:
                 self.test(model, test_loader, f"answers_{rep}.csv")

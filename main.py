@@ -1,7 +1,7 @@
 from my_utils.config import Config
 from trainer import Trainer
-#from models.modelNew import Model
-from models.model import Model
+from models.modelNew import Model
+#from models.model import Model
 import os
 import json
 
@@ -21,5 +21,6 @@ ratio_splits = (0.1, 0.1, 0.8)
 
 trainer = Trainer(config=config, split_ratio=(num_splits, ratio_splits))
 model = Model()
+print(model)
 trainer(model, epochs=1, output=True)
 
