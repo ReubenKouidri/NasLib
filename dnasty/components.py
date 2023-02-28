@@ -111,7 +111,7 @@ class ConvBlock2D(nn.Sequential):
             bias: bool | None = True,
             bn: bool | None = True,
             activation: str | None = None
-    ):
+    ) -> None:
         super(ConvBlock2D, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -125,13 +125,11 @@ class ConvBlock2D(nn.Sequential):
                               kernel_size=self.kernel_size, stride=self.stride,
                               padding=self.padding, dilation=self.dilation,
                               groups=self.groups, bias=self.bias)
-        self.activation = make_activation(activation) if activation else None
-        self.bn = nn.BatchNorm2d(self.out_channels, momentum=0.1, affine=True) if bn else False
         self.add_module("conv", self.conv)
-        if self.activation:
-            self.add_module(f"{activation}", self.activation)
-        if self.bn:
-            self.add_module("batch_norm", self.bn)
+        if activation:
+            self.add_module(f"{activation}", make_activation(activation))
+        if bn:
+            self.add_module("batch_norm", nn.BatchNorm2d(self.out_channels, momentum=0.1, affine=True))
 
 
 class ChannelAttention(nn.Module):
@@ -186,8 +184,9 @@ class DenseBlock(nn.Sequential):
             activation: str | None,
             dropout: bool | None = True
     ) -> None:
-        super(DenseBlock, self).__init__(
-            nn.Linear(in_features, out_features),
-            make_activation(activation) if activation else None,
-            nn.Dropout(p=0.5) if dropout else None
-        )
+        super(DenseBlock, self).__init__()
+        self.linear = nn.Linear(in_features, out_features)
+        if activation:
+            self.add_module(f"{activation}", make_activation(activation))
+        if dropout:
+            self.add_module("dropout", nn.Dropout(p=0.5))
