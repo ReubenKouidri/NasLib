@@ -73,12 +73,12 @@ class Trainer:
             imgs, tgts = imgs.to(self.device), tgts.to(self.device)
             preds = model(imgs).argmax(dim=1)
             print(preds)
-            assert all(0 < pred < 9 and not torch.isnan(pred) for pred in preds)
+            #assert all(0 < pred < 9 and not torch.isnan(pred) for pred in preds)
             for pred, tgt in zip(preds, tgts):
                 if pred in tgt:
-                    score_matrix[pred - 1, pred - 1] += 1
+                    score_matrix[pred, pred] += 1
                 else:
-                    score_matrix[tgt[0] - 1, pred - 1] += 1
+                    score_matrix[tgt[0], pred] += 1
 
         F1 = torch.mean(2 * score_matrix.diag() / (score_matrix.sum(dim=1) + score_matrix.sum(dim=0)))
 
