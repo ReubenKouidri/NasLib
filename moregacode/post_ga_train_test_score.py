@@ -400,7 +400,7 @@ def get_args():
     return parser.parse_args()
 
 
-def main():
+if __name__ == "__main__":
     args = get_args()
     world_size = args.gpus * args.nodes
 
@@ -415,7 +415,3 @@ def main():
     mp.spawn(
         run, args=(best_genome, world_size, args,), nprocs=args.gpus, join=True,
     )
-
-
-if __name__ == "__main__":
-    main()
