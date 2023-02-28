@@ -13,6 +13,7 @@ class Model(nn.Sequential):
             ("ConvBlock3", ConvBlock2D(32, 32, 8, bn=True, activation="ReLU")),
             ("ConvBlock4", ConvBlock2D(32, 32, 4, bn=True, activation="ReLU")),
             ("MP2", MaxPool2D(2, 2)),
+            ("CBAM2", CBAM(32, se_ratio=4, kernel_size=4)),
             ("Flatten", Flatten()),
             ("DenseBlock1", DenseBlock(15488, 100, activation="ReLU")),
             ("DenseBlock2", DenseBlock(100, 9, activation="ReLU", dropout=False)),
