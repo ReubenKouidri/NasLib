@@ -1,6 +1,6 @@
 from my_utils.config import Config
 from trainer import Trainer
-from models.modelNew import Model
+from models.defaults import Model
 import os
 import json
 
