@@ -20,12 +20,18 @@ Methods to try:
   - single layer optimisation (much faster)
 
 <b>Moving forward...</b>
+* General:
   - optimise current methods
   - equivalent 1D methods for corresponding datasets (e.g. no wavelet transform) and to increase speed
-  - Minimal search spaces c.f. NEAT
   - optimise crossover operators
-  - expand genetics
-  - add speciation
-  - add several more eval strategies: Bayesian Opt., Reinforcement Learning
+  
+* Search Space:
+  - Minimise c.f. NEAT
   - add ViT and Transformer arch
+  
+* Search Strategy:
+  - add speciation
+  - Bayesian Opt.
+  - Reinforcement Learning
+  - CMA-ES
    
