@@ -4,7 +4,7 @@ from torch.utils.data import Subset
 from typing import MutableSequence, TypeVar, Callable, Any
 import collections.abc as abc
 import functools
-from my_datasets.CPSCDataset import CPSCDataset2D
+from datasets.CPSCDataset import CPSCDataset2D
 random.seed(9834275)
 
 T_co = TypeVar('T_co', covariant=True)
