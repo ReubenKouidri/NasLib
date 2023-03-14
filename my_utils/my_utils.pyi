@@ -1,6 +1,6 @@
 from typing import Callable, Any, overload
 import torch
-from my_datasets.CPSCDataset import CPSCDataset2D
+from datasets.CPSCDataset import CPSCDataset2D
 
 
 @overload
