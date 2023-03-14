@@ -3,7 +3,7 @@ import pandas as pd
 import os
 
 
-BASE_PATH = "/Users/juliettekouidri/Documents/Reuben/Projects/Python/NasLib/my_datasets/mitbih_database"
+BASE_PATH = "/datasets/mitbih_database"
 ANNOT_ENDING = "annotations.txt"
 data_files = [file for file in os.listdir(BASE_PATH) if file.endswith(".csv")]
 data_files.sort()
