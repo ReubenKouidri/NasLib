@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 import pandas as pd
 import numpy as np
 from tsmoothie import ConvolutionSmoother
-from typing import Iterable, Union, Any, Tuple, List
+from typing import Any
 import importlib
 
 
@@ -28,7 +28,7 @@ class CPSCDataset(Dataset):
             normalize: bool | None = True,
             smoothen: bool | None = True,
             trim: bool | None = True,
-            lead: Union[int, Iterable] | None = 3,
+            lead: int | None = 3,
             test: bool | None = False
     ):
         super(CPSCDataset, self).__init__()
@@ -48,7 +48,6 @@ class CPSCDataset(Dataset):
         self.trim = trim
         self.smoothen = smoothen
         self.lead = torch.tensor(lead - 1)  # leads in [1,12] hence -1 indexes correctly
-        #self.targets = torch.as_tensor((self.references['First_label'] - 1)[:len(os.listdir(self.data_path))], dtype=torch.int64)  # [0-8]. !type long
 
     @staticmethod
     def _normalize(data):
