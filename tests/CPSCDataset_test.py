@@ -1,63 +1,87 @@
+import unittest
+import numpy as np
 import torch
-import torch.nn as nn
-from dnasty.components import ConvBlock2D, DenseBlock, Flatten, Tensor, CBAM
-from my_datasets.CPSCDataset import CPSCDataset, CPSCDataset2D
-import matplotlib.pyplot as plt
+from my_utils.wavelets import mexh
+from datasets.CPSCDataset import CPSCDataset, CPSCDataset2D
 
-DATA_PATH = "../my_datasets/cpsc_data/train300"
-REF_PATH = "../my_datasets/cpsc_data/reference300.csv"
-
-
-class M2(nn.Module):
-    def __init__(self):
-        super(M2, self).__init__()
-        self.cbam = True
-        self.MP1 = nn.MaxPool2d(kernel_size=2)
-        self.MP2 = nn.MaxPool2d(kernel_size=2)
-        self.CB1 = ConvBlock2D(in_channels=1, out_channels=32, kernel_size=10, bn=True, activation='ReLU')
-        self.CB2 = ConvBlock2D(in_channels=32, out_channels=32, kernel_size=10, bn=True, activation='ReLU')
-        self.CB3 = ConvBlock2D(in_channels=32, out_channels=32, kernel_size=8, bn=True, activation='ReLU')
-        self.CB4 = ConvBlock2D(in_channels=32, out_channels=32, kernel_size=4, bn=True, activation='ReLU')
-        self.CBAM1 = CBAM(in_channels=32, se_ratio=4, kernel_size=4, spatial=True, channel=True)
-        self.CBAM2 = CBAM(in_channels=32, se_ratio=4, kernel_size=4, spatial=True, channel=True)
-        self.flatten = Flatten()
-        self.DB1 = DenseBlock(in_features=15488, out_features=100, activation='ReLU', dropout=True)
-        self.DB2 = DenseBlock(in_features=100, out_features=9, activation='ReLU', dropout=False)
-        self.softmax = nn.Softmax(dim=1)
-
-    def build_model(self) -> nn.Module:
-        model = nn.Sequential()
-        model.add_module("CB1", self.CB1)
-        model.add_module("CB2", self.CB2)
-        model.add_module("CBAM1", self.CBAM1) if self.cbam else ...
-        model.add_module("MP1", self.MP1)
-        model.add_module("CB3", self.CB3)
-        model.add_module("CB4", self.CB4)
-        model.add_module("CBAM2", self.CBAM2) if self.cbam else ...
-        model.add_module("MP2", self.MP2)
-        model.add_module("Flatten", self.flatten)
-        model.add_module("DB1", self.DB1)
-        model.add_module("DB2", self.DB2)
-        model.add_module("softmax", self.softmax)
-        return model
-
-    def forward(self, t: Tensor) -> Tensor:
-        return self.build_model()(t)
+#TODO:
+# add test cases for:
+#  - _normalize(), _trim_data(), _smoothen()
 
 
-from torch.utils.data import DataLoader
+class TestCPSCDataset(unittest.TestCase):
+    def setUp(self):
+        self.dataset = CPSCDataset(data_path="../datasets/cpsc_data/test100",
+                                   reference_path="../datasets/cpsc_data/reference300.csv",
+                                   normalize=True,
+                                   smoothen=True,
+                                   trim=True,
+                                   lead=3)
 
-d2 = CPSCDataset2D(data_path=DATA_PATH, reference_path=REF_PATH)
-img, tgt = d2[0]
-m = M2()
-pred = m(img)
-print(pred)
+    def test_testing_mode(self):
+        self.dataset.test = True
+        x, y = self.dataset[0]
+        self.assertTrue(isinstance(x, torch.Tensor))
+        self.assertTrue(isinstance(y, torch.Tensor))
+        self.assertEqual(len(y), 3)
+        self.assertEqual(y[0].shape, torch.Size([]))
+        self.assertEqual(y[1].shape, torch.Size([]))
+        self.assertEqual(y[2].shape, torch.Size([]))
 
-"""for i in range(5):
-    img, tgt = d2[i]
-    plt.matshow(img, cmap='Greys')
-    plt.show()
-#tensor = torch.randn(10, 1, 128, 128)
-#print(tensor)
-#print(m(tensor))
-"""
+        self.dataset.test = False
+        x, y = self.dataset[0]
+        self.assertTrue(isinstance(x, torch.Tensor))
+        self.assertTrue(isinstance(y, torch.Tensor))
+        self.assertEqual(y.shape, torch.Size([]))
+
+    def test_len(self):
+        self.assertEqual(len(self.dataset), 100)
+
+    def test_getitem(self):
+        x, y = self.dataset[0]
+        self.assertTrue(torch.is_tensor(x))
+        self.assertTrue(torch.is_tensor(y))
+        self.assertEqual(x.dtype, torch.float64)
+        self.assertEqual(y.dtype, torch.int64)
+        self.assertEqual(x.shape, torch.Size([1000]))  # 1D Tensor of length 1000
+        self.assertEqual(y.shape, torch.Size([]))  # 0-D Tensor
+
+
+class TestCPSCDataset2D(unittest.TestCase):
+    def setUp(self):
+        self.dataset = CPSCDataset2D(data_path="../datasets/cpsc_data/test100",
+                                     reference_path="../datasets/cpsc_data/reference300.csv",
+                                     wavelet="mexh",
+                                     lead=3)
+
+    def test_testing_mode(self):
+        self.dataset.test = True
+        x0, y0 = self.dataset[0]
+        self.assertTrue(isinstance(x0, torch.Tensor))
+        self.assertEqual(x0.shape, torch.Size([1, 128, 128]))
+        self.assertTrue(isinstance(y0, torch.Tensor))
+        self.assertEqual(len(y0), 3)
+
+        self.dataset.test = False
+        x1, y1 = self.dataset[0]
+        self.assertEqual(torch.all(x1), torch.all(x0))
+        self.assertNotEqual(torch.all(y1), torch.all(y0))
+        self.assertTrue(isinstance(x1, torch.Tensor))
+        self.assertTrue(isinstance(y1, torch.Tensor))
+        self.assertEqual(y1.shape, torch.Size([]))
+
+    def test_getitem(self):
+        x, y = self.dataset[0]
+        self.assertTrue(torch.is_tensor(x))
+        self.assertTrue(torch.is_tensor(y))
+        self.assertEqual(x.dtype, torch.float64)
+        self.assertEqual(y.dtype, torch.int64)
+        self.assertEqual(x.shape, torch.Size([1, 128, 128]))
+        self.assertEqual(y.shape, torch.Size([]))  # 0-D Tensor
+
+    def test_wavelet(self):
+        data = np.random.rand(1000)
+        img = mexh(data, 64)
+        self.assertEqual(img.shape, (128, 128))
+        self.assertTrue(isinstance(img, np.ndarray))
+        self.assertTrue(np.all(np.isfinite(img)))
