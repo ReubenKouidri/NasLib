@@ -4,7 +4,7 @@ from components import ResBlock1, ResBlock2, ResBlock3, MaxPool2D, DenseBlock, F
 
 def create_model(genome):
     """
-        :param genome: chromosomes of chromosomes encoding the model:
+        :param genome: chromosomes of genes encoding the model:
         [gene0(type=conv), gene1(conv),....., gene6(type=dense)]
         where conv chromosomes look like [out_planes, conv_ker, att_ker, red_ratio],
         and dense chromosomes look like: [num_neurons]
@@ -12,8 +12,8 @@ def create_model(genome):
     """
     model = nn.Sequential()
 
-    genome.chromosomes[0].chromosomes['in_planes_0'] = 1
-    genome.chromosomes[-1].chromosomes['out_features'] = 9
+    genome.chromosomes[0].chromosomes['in_planes_0'] = 1  # set first layer in planes
+    genome.chromosomes[-1].chromosomes['out_features'] = 9  # set final layer (dense) output to num classes
 
     rb_types = genome.id[0]  # e.g. (1, 2, 2, 1)
     num_rbs = len(rb_types)  # e.g. 4
