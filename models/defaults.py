@@ -3,9 +3,10 @@ import torch.nn as nn
 from collections import OrderedDict
 
 
-class Model(nn.Sequential):
+class S_2RB2D2(nn.Sequential):
+    """sequential, 2x RB(2 conv each before attention) 2x Dense"""
     def __init__(self):
-        self.dict = OrderedDict([
+        architecture = OrderedDict([
             ("ConvBlock1", ConvBlock2D(1, 32, 10, bn=True, activation="ReLU")),
             ("ConvBlock2", ConvBlock2D(32, 32, 10, bn=True, activation="ReLU")),
             ("MP1", MaxPool2D(2, 2)),
@@ -19,4 +20,4 @@ class Model(nn.Sequential):
             ("DenseBlock2", DenseBlock(100, 9, activation="ReLU", dropout=False)),
             ("Softmax", nn.Softmax(dim=1))
         ])
-        super(Model, self).__init__(self.dict)
+        super(S_2RB2D2, self).__init__(architecture)
