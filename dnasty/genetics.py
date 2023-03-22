@@ -1,10 +1,18 @@
+import collections
 import random
-from typing import Any, Type, Self, Optional, Iterable, TextIO, Union
+from typing import Optional, Union
 import abc
+from abc import abstractmethod
+import numbers
 
 
 def random_mutation(size: int) -> int:
     return random.randrange(-size, size)
+
+
+def mag_crossover(g1, g2):
+    """return new gene where exons take the mean value of both parents"""
+    ...
 
 
 class GeneBase(abc.ABC):
@@ -14,49 +22,62 @@ class GeneBase(abc.ABC):
         - Conv layers (size and number of kernels, stride length, padding)
         - MaxPool layers (size of kernel and stride length)
     """
+    @abstractmethod
+    def __init__(self, exons, location):
+        if not isinstance(exons, collections.Mapping):
+            raise TypeError(f"exons must be a Mapping type.\n"
+                            f"exons {exons} of type {type(exons)} were passed.")
+        self.exons = dict(exons)
+        self.location = location  # on chromosome
 
-    @abc.abstractmethod
-    def mutate(self):
+    @abstractmethod
+    def mutate(self, mode) -> None:
         """ apply mutation to individual gene """
-        raise NotImplementedError
+        eval(mode + "_mutation")(self)
 
-    @abc.abstractmethod
-    def crossover(self, other):
-        """ crossover operator """
-        raise NotImplementedError
+    @abstractmethod
+    def crossover(self, mode, other):
+        return eval(mode + "_crossover")(self, other)
+
+    def validate(self, attr, targetType) -> None:
+        if isinstance(attr, collections.Iterable):
+            for item in attr:
+                self.validate(item, targetType)
+
+        if not isinstance(attr, targetType):
+            raise ValueError(
+                f"in_features must be {targetType}.\n"
+                f"{attr} of type {type(attr)} was passed."
+            )
+
+    def __len__(self) -> int:
+        return len(self.exons)
 
 
 class DenseGene(GeneBase):
-    def __init__(self, in_features, out_features, dropout: bool=False):
-        self.in_features = in_features
-        self.out_features = out_features
-        self.dropout = dropout
+    def __init__(self, in_features, out_features, loc, dropout: bool=False):
+        super().validate((in_features, out_features, loc), numbers.Integral)
+        exons = {"in": int(in_features), "out": int(out_features), "dropout": dropout}
+        super().__init__(exons, loc)
 
-    def mutate(self):
-        pass
+    def mutate(self, mode):
+        return super().mutate(mode)
 
-    def crossover(self, other):
-        pass
+    def crossover(self, mode, other) -> None:
+        super().crossover(mode, other)
 
 
 class ConvGene(GeneBase):
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: Union[int, tuple],
-            padding: Union[int, str] | None = 0,
-    ):
-        in_channels = in_channels
-        out_channels = out_channels
-        kernel_size = kernel_size
-        padding = padding
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: Union[int, tuple], loc: int):
+        super().validate((in_channels, out_channels), numbers.Integral)
+        exons = {"in_channels": in_channels, "out_channels": out_channels, "kernel_size": kernel_size}
+        super().__init__(exons, loc)
 
-    def mutate(self):
-        pass
+    def mutate(self, mode):
+        return super().mutate(mode)
 
-    def crossover(self, other):
-        pass
+    def crossover(self, mode, other) -> None:
+        super().crossover(mode, other)
 
 
 class Gene:
@@ -117,74 +138,27 @@ class Gene:
         return len(self.sequence)
 
 
+class Genome:
+    def __init__(
+            self,
+            config,
+            genes: collections.Iterable,
+            innovation_number: int,
+            fitness: Optional[float] = 0.0
+    ) -> None:
+        self.config = config
+        self.fitness = fitness
+        self.genes = list(genes)
+        self.innovation_number = innovation_number
 
-class Chromosome:
-
-    def __init__(self, location: int, genes: list[Gene], chromosome_type: str, id: int) -> None:
-        """
-        :param location: location in the Genome: used to find final Chromosome and correctly set out layers
-        :param genes: a list of genes that make up the chromosome
-        :param chromosome_type: type of layer that the chromosome encodes: Union[Conv, Dense]
-        :param id: innovation number
-        """
-        self.location = location
-        self.genes = genes
-        self._type = chromosome_type
-        self.innov_num = id
-
-    @classmethod
-    def mutate(cls, genepool: Any, species: Any) -> Type[Self]:
-        """
-        TODO:
-            - keep track of innovation number?
-            - mutate genes
-            - instead of genepool take the config file
-        :param genepool:
-        :param species:
-        :return Chromosome: new mutated chromosome
-        """
-        ...
-
-    @classmethod
-    def crossover(cls, o: Type[Self], method: str) -> Type[Self]:
-        """
-        TODO:
-            - keep track of innov num
-            - cross over genetics
-
-        Cross over genetic information
-        Need to keep track of innovation number each time a mutation is performed
-        :param o: other chromosome
-        :param method: how to mix genetic information
-        :return Chromosome: new Chromosome with crossed over genes
-        """
-        ...
+    def crossover(self): ...
 
     def __len__(self):
         return len(self.genes)
 
 
-class Genome:
-    """
-    A container for all genetic information needed to create a CNN
-    """
-    def __init__(
-            self,
-            config_file: TextIO,
-            chromosomes: Optional[Iterable[Chromosome]],
-            fitness: Optional[float] = 0.0
-    ) -> None:
-        self.config_file = config_file
-        self.fitness = fitness
-        self.chromosomes = chromosomes
-
-    def __len__(self):
-        return len(self.chromosomes)
-
-
 class GenePool:
-    def __init__(self, filter_set_conv, kernel_set_conv, kernel_set_att, r_pool, max_pool_set,
-                 neuron_set):
+    def __init__(self, filter_set_conv, kernel_set_conv, kernel_set_att, r_pool, max_pool_set, neuron_set):
         self.outplanes_genepool = filter_set_conv
         self.conv_ker_genepoool = kernel_set_conv
         self.reduction_genepool = r_pool
