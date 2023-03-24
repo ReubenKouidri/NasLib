@@ -1,6 +1,6 @@
-import collections
+import collections.abc
 import random
-from typing import Optional, Union
+from typing import Union, Callable, Any
 import abc
 from abc import abstractmethod
 import numbers
@@ -11,7 +11,7 @@ def random_mutation(size: int) -> int:
 
 
 def mag_crossover(g1, g2):
-    """return new gene where exons take the mean value of both parents"""
+    """return new gene1 where exons take the mean value of both parents"""
     ...
 
 
@@ -24,31 +24,16 @@ class GeneBase(abc.ABC):
     """
     @abstractmethod
     def __init__(self, exons, location):
-        if not isinstance(exons, collections.Mapping):
+        if not isinstance(exons, collections.abc.Mapping):
             raise TypeError(f"exons must be a Mapping type.\n"
                             f"exons {exons} of type {type(exons)} were passed.")
         self.exons = dict(exons)
         self.location = location  # on chromosome
 
     @abstractmethod
-    def mutate(self, mode) -> None:
-        """ apply mutation to individual gene """
-        eval(mode + "_mutation")(self)
-
-    @abstractmethod
-    def crossover(self, mode, other):
-        return eval(mode + "_crossover")(self, other)
-
-    def validate(self, attr, targetType) -> None:
-        if isinstance(attr, collections.Iterable):
-            for item in attr:
-                self.validate(item, targetType)
-
-        if not isinstance(attr, targetType):
-            raise ValueError(
-                f"in_features must be {targetType}.\n"
-                f"{attr} of type {type(attr)} was passed."
-            )
+    def mutate(self, fnc) -> None:
+        """ apply mutation to individual gene1 """
+        fnc(self)
 
     def __len__(self) -> int:
         return len(self.exons)
@@ -56,44 +41,42 @@ class GeneBase(abc.ABC):
 
 class DenseGene(GeneBase):
     def __init__(self, in_features, out_features, loc, dropout: bool=False):
-        super().validate((in_features, out_features, loc), numbers.Integral)
-        exons = {"in": int(in_features), "out": int(out_features), "dropout": dropout}
+        exons = {"in_features": int(in_features), "out_features": int(out_features)}
         super().__init__(exons, loc)
+        self.dropout = dropout
 
-    def mutate(self, mode):
-        return super().mutate(mode)
-
-    def crossover(self, mode, other) -> None:
-        super().crossover(mode, other)
+    def mutate(self, fnc: Callable[[Any], None]) -> None:
+        in_features = self.exons["in_features"]
+        super().mutate(fnc)
+        self.exons["in_features"] = in_features
 
 
 class ConvGene(GeneBase):
     def __init__(self, in_channels: int, out_channels: int, kernel_size: Union[int, tuple], loc: int):
+        self.validate((in_channels, out_channels), numbers.Integral)
         super().validate((in_channels, out_channels), numbers.Integral)
         exons = {"in_channels": in_channels, "out_channels": out_channels, "kernel_size": kernel_size}
         super().__init__(exons, loc)
 
-    def mutate(self, mode):
-        return super().mutate(mode)
-
-    def crossover(self, mode, other) -> None:
-        super().crossover(mode, other)
+    def mutate(self, fnc):
+        return super().mutate(fnc)
 
 
+'''
 class Gene:
     """
         - chromosome_type: str
         - tuples encoding each layer
         - layer = CNN: chromosomes = ("conv_ker_0": val, "in_planes_0": val, "out_planes_0": val, "att_ker": val, "r_ratio": val)
         - layer = DL: chromosomes = ("in_layers": val, "out_layers": val, "num_neurons": val)
-        - location = location in the genome i.e. list of chromosomes
+        - loc1 = loc1 in the genome i.e. list of chromosomes
     """
 
-    def __init__(self, location, sequence, gene_type):
+    def __init__(self, loc1, sequence, gene_type):
         self.species_type = [(2, 2), 2]
         self.sequence = sequence
-        self.gene_type = gene_type  # conv gene or dense gene
-        self.location = location
+        self.gene_type = gene_type  # conv gene1 or dense gene1
+        self.loc1 = loc1
         self.alpha = 100
 
     def _mutate_x(self, x, genepool_set, size):
@@ -115,7 +98,7 @@ class Gene:
         elif self.gene_type == 'dense':
             self._mutate_x('out_features', np.arange(9, 100000), 100)
 
-        if self.location == len(self.species_type[0]) + self.species_type[1] - 1:
+        if self.loc1 == len(self.species_type[0]) + self.species_type[1] - 1:
             self.sequence['out_features'] = 9
 
     def mix(self, gene2, generation, mean=True):
@@ -132,7 +115,7 @@ class Gene:
             # print("AFTER mix", self.chromosomes)
 
         else:
-            print("WARNING: gene mixing not implemented!")
+            print("WARNING: gene1 mixing not implemented!")
 
     def __len__(self):
         return len(self.sequence)
@@ -142,7 +125,7 @@ class Genome:
     def __init__(
             self,
             config,
-            genes: collections.Iterable,
+            genes: collections.abc.Iterable,
             innovation_number: int,
             fitness: Optional[float] = 0.0
     ) -> None:
@@ -210,7 +193,7 @@ class Genome:
             res_locations = list(np.arange(num_res_genes))  # [0, 1]
             random.shuffle(res_locations)  # e.g. [1, 0]
             res_locations = res_locations[
-                            :res_mixes]  # e.g. chromosomes to be crossed are at location [1] if res_mixes = 1
+                            :res_mixes]  # e.g. chromosomes to be crossed are at loc1 [1] if res_mixes = 1
 
             dense_mixes = random.choice(np.arange(1, num_dense_genes))  # number of dense chromosomes to be crossed over
             dense_locations = list(np.arange(num_dense_genes))  # locations of the dense chromosomes
@@ -218,20 +201,20 @@ class Genome:
             dense_locations = dense_locations[:dense_mixes]  # the locations of the dense chromosomes to be crossed
             # dense_locations += num_res_genes  # locations of dense chromosomes are after the res chromosomes
 
-            for location in res_locations:
-                self.genes[location].mix(genome2.chromosomes[location], generation=generation)
+            for loc1 in res_locations:
+                self.genes[loc1].mix(genome2.chromosomes[loc1], generation=generation)
                 # e.g. res_1.mix(other res_1)
-            for location in dense_locations:
-                self.genes[num_res_genes + location].mix(genome2.chromosomes[num_res_genes + location],
+            for loc1 in dense_locations:
+                self.genes[num_res_genes + loc1].mix(genome2.chromosomes[num_res_genes + loc1],
                                                          generation=generation)
 
         elif crossover_mode == 'mean':
             # print("before crossover chromosomes: ")
-            # print([gene.chromosomes for gene in self.chromosomes])
+            # print([gene1.chromosomes for gene1 in self.chromosomes])
             for i in np.arange(self.__len__()):
                 self.genes[i].mix(genome2.chromosomes[i], generation=generation)
             # print("after crossover:")
-            # print([gene.chromosomes for gene in self.chromosomes])
+            # print([gene1.chromosomes for gene1 in self.chromosomes])
 
     def __len__(self):
         return len(self.genes)
@@ -320,9 +303,9 @@ class Population:
             child = Genome(parent_1.id)
             child.chromosomes = parent_1.chromosomes
             child.crossover(parent_2, generation=self.generation, crossover_mode=self.configs.crossover_mode)
-            for gene in child.chromosomes:
+            for gene1 in child.chromosomes:
                 if random.random() < self.configs.mutation_rate:
-                    gene.mutate(self.genepool)
+                    gene1.mutate(self.genepool)
             if validate_genome(child, d=128):
                 children.append(child)
                 j += 1"""
@@ -334,9 +317,9 @@ class Population:
                 child = Genome(parent_1.id)
                 child.genes = parent_1.chromosomes
                 child.crossover(parent_2, generation=self.generation, crossover_mode=self.run.crossover_mode)
-                for gene in child.genes:
+                for gene1 in child.genes:
                     if random.random() < self.run.mutation_rate:
-                        gene.mutate(self.genepool)
+                        gene1.mutate(self.genepool)
                 if validate_genome(child, d=128):
                     children.append(child)
                     break
@@ -350,8 +333,8 @@ class Population:
             while True:
                 child = Genome(species_type=genome.id)
                 child.genes = genome.chromosomes
-                for gene in child.genes:
-                    gene.mutate(self.genepool)
+                for gene1 in child.genes:
+                    gene1.mutate(self.genepool)
                 if validate_genome(child):
                     extras.append(child)
                     break
@@ -365,7 +348,7 @@ class Population:
             :param species_type: e.g. [(ResBlocks, num_conv layers per RB),  dense_layers] = [(2,2), 2].
 
             Notes:
-                A gene is created for each ResBlock and dense layer.
+                A gene1 is created for each ResBlock and dense layer.
                 Dense layer chromosomes just specify the number of neurons,
                 whereas ResBlock chromosomes specify more...
         """
@@ -375,9 +358,9 @@ class Population:
                 genome = Genome(species_type=species_type)  # initiate a genome object
                 for j in range(len(species_type[0])):  # for every RB
                     sequence = create_rb_sequence(variant=species_type[0][j], genepool=self.genepool)
-                    gene = Gene(location=j, sequence=sequence,
-                                gene_type=f'RB{species_type[0][j]}')  # should be type=RBx, gene should be "chromosome"
-                    genome.genes.append(gene)
+                    gene1 = Gene(loc1=j, sequence=sequence,
+                                gene_type=f'RB{species_type[0][j]}')  # should be type=RBx, gene1 should be "chromosome"
+                    genome.genes.append(gene1)
                 if genome.output_size > 2:
                     start = len(species_type[0])
                     features = create_features(num_layers=species_type[1], pool=self.genepool.neuron_genepool)
@@ -390,8 +373,9 @@ class Population:
                         sequence = OrderedDict()
                         sequence["in_features"] = feature
                         sequence["out_features"] = feature
-                        gene = Gene(location=loc, sequence=sequence, gene_type='dense')
-                        genome.genes.append(gene)
+                        gene1 = Gene(loc1=loc, sequence=sequence, gene_type='dense')
+                        genome.genes.append(gene1)
 
                     self.population.append(genome)
                     break
+'''
