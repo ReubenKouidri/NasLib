@@ -3,7 +3,7 @@ import random
 from typing import Union, Callable, Any
 import abc
 from abc import abstractmethod
-import numbers
+import numpy as np
 
 
 def random_mutation(size: int) -> int:
@@ -31,7 +31,7 @@ class GeneBase(abc.ABC):
         self.location = location  # on chromosome
 
     @abstractmethod
-    def mutate(self, fnc) -> None:
+    def mutate(self, fnc: Callable[[Any], None]) -> None:
         """ apply mutation to individual gene1 """
         fnc(self)
 
@@ -40,26 +40,109 @@ class GeneBase(abc.ABC):
 
 
 class DenseGene(GeneBase):
-    def __init__(self, in_features, out_features, loc, dropout: bool=False):
-        exons = {"in_features": int(in_features), "out_features": int(out_features)}
-        super().__init__(exons, loc)
-        self.dropout = dropout
+    allowed_features = range(10, 10_000, 100)
 
-    def mutate(self, fnc: Callable[[Any], None]) -> None:
+    def __init__(self, in_features, out_features, loc, dropout: bool=False):
+        if in_features not in DenseGene.allowed_features:
+            raise ValueError(f"in_features: {in_features}: must be in the allowed range:"
+                             f"[{DenseGene.allowed_features[0], DenseGene.allowed_features[-1]}]")
+        if out_features not in DenseGene.allowed_features:
+            raise ValueError(f"out_features: {out_features}: must be in the allowed range:"
+                             f"[{DenseGene.allowed_features[0], DenseGene.allowed_features[-1]}]")
+
+        exons = {"in_features": int(in_features), "out_features": int(out_features), "dropout": dropout}
+        super().__init__(exons, loc)
+
+    def mutate(self, fnc):
         in_features = self.exons["in_features"]
         super().mutate(fnc)
         self.exons["in_features"] = in_features
 
 
 class ConvGene(GeneBase):
-    def __init__(self, in_channels: int, out_channels: int, kernel_size: Union[int, tuple], loc: int):
-        self.validate((in_channels, out_channels), numbers.Integral)
-        super().validate((in_channels, out_channels), numbers.Integral)
-        exons = {"in_channels": in_channels, "out_channels": out_channels, "kernel_size": kernel_size}
+    allowed_channels = range(2, 128, 4)
+    allowed_kernel_size = range(1, 16, 2)
+    activations = {"relu", "tanh"}
+
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: Union[int, tuple], activation: str, loc: int):
+        if activation not in ConvGene.activations:
+            raise ValueError(f"activation {activation} not in allowed set: {self.activations}")
+
+        exons = {"in_channels": in_channels,
+                 "out_channels": out_channels,
+                 "kernel_size": kernel_size,
+                 "activation": activation}
+
         super().__init__(exons, loc)
 
     def mutate(self, fnc):
-        return super().mutate(fnc)
+        super().mutate(fnc)
+
+
+class MaxPoolGene(GeneBase):
+    allowed_values = range(2, 10)
+
+    def __init__(self, size, stride, loc):
+        if size not in MaxPoolGene.allowed_values:
+            raise ValueError(f"size {size} must be in {[self.allowed_values[0], self.allowed_values[-1]]}")
+
+        exons = {"size": size, "stride": stride}
+        super().__init__(exons, loc)
+
+    @staticmethod
+    def _mutate():
+        if random.random() > 0.5:
+            return lambda x: x + 1
+        else:
+            return lambda x: x -1
+
+    def mutate(self, fnc):
+        super().mutate(fnc)
+
+
+class Genome:
+    image_dims = 128
+
+    def __init__(self, genes):
+        self.genes = genes
+        self.fitness = 0.0
+
+    def crossover(self, other, fnc) -> 'Genome': ...
+
+    def _validate(self):
+        conv_genes = [gene for gene in self.genes if isinstance(gene, ConvGene)]
+        d = self.image_dims
+        adjust_output_size = lambda input, padding, filter_size, stride: 1 + np.floor((input - filter_size + 2 * padding) / stride)
+        for gene in conv_genes:
+            d = adjust_output_size(d, 0, gene.exons["kernel_size"], 1)
+
+    def __len__(self):
+        return len(self.genes)
+
+
+class Population:
+    def __init__(self, config):
+        self.population = []
+        self.generation = 0
+        self.genepool = GenePool()
+        self.config = config
+
+    def initialize(self):
+        for i in range(self.config.population_size):
+            genome = Genome()
+
+    def __len__(self):
+        return len(self.population)
+
+
+
+class GenePool:
+    outplanes = [range(2, 128, 4)]  # num filters in layer
+    conv_ker = [range(2, 32)]  # size of conv filter
+    r_ratio = [range(1, 10)]  # reduction r_ratio
+    att_ker = [range(1, 10)]  # size of att_ker filter
+    maxpool = [range(1, 10)]  # size of maxpool kernel
+    neurons = [range(1, 10_000)]  # number of out features
 
 
 '''
