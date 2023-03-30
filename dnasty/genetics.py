@@ -1,9 +1,22 @@
-import collections.abc
-import random
 from typing import Union, Callable, Any
 import abc
 from abc import abstractmethod
+import collections.abc
+import random
 import numpy as np
+import inspect
+import torch.nn as nn
+import dnasty.components as components
+
+
+__all__ = [
+    "LinearGene",
+    "Conv2dGene",
+    "MaxPool2dGene",
+    "ChannelAttentionGene",
+    "SpatialAttentionGene",
+    "CBAMGene"
+]
 
 
 def random_mutation(size: int) -> int:
@@ -15,13 +28,21 @@ def mag_crossover(g1, g2):
     ...
 
 
+def build_layer(gene):
+    name = gene.__class__.__name__.replace("Gene", "")
+    module = nn if hasattr(nn, name) else components
+    if not hasattr(module, name):
+        raise AttributeError(f"No module {name} found in either torch.nn or dnasty.components")
+    sig = inspect.signature(getattr(module, name))
+
+    params = [p for p in gene.exons.keys() if p in sig.parameters]
+    kwargs = {p: gene.exons[p] for p in params}
+    layer = getattr(module, name)(**kwargs)
+    return layer
+
+
 class GeneBase(abc.ABC):
-    """
-    Base class for derived Genes
-    Different derived genes encode:
-        - Conv layers (size and number of kernels, stride length, padding)
-        - MaxPool layers (size of kernel and stride length)
-    """
+    """Base class for all Genes to inherit from"""
     @abstractmethod
     def __init__(self, exons, location):
         if not isinstance(exons, collections.abc.Mapping):
@@ -39,16 +60,16 @@ class GeneBase(abc.ABC):
         return len(self.exons)
 
 
-class DenseGene(GeneBase):
-    allowed_features = range(10, 10_000, 100)
+class LinearGene(GeneBase):
+    allowed_features = range(10, 10_011, 100)
 
     def __init__(self, in_features, out_features, loc, dropout: bool=False):
-        if in_features not in DenseGene.allowed_features:
-            raise ValueError(f"in_features: {in_features}: must be in the allowed range:"
-                             f"[{DenseGene.allowed_features[0], DenseGene.allowed_features[-1]}]")
-        if out_features not in DenseGene.allowed_features:
-            raise ValueError(f"out_features: {out_features}: must be in the allowed range:"
-                             f"[{DenseGene.allowed_features[0], DenseGene.allowed_features[-1]}]")
+        if in_features not in LinearGene.allowed_features:
+            raise ValueError(f"in_features ({in_features}) must be in the allowed range:"
+                             f"{LinearGene.allowed_features[0], LinearGene.allowed_features[-1]}")
+        if out_features not in LinearGene.allowed_features:
+            raise ValueError(f"out_features ({out_features}) must be in the allowed range:"
+                             f"[{LinearGene.allowed_features[0], LinearGene.allowed_features[-1]}]")
 
         exons = {"in_features": int(in_features), "out_features": int(out_features), "dropout": dropout}
         super().__init__(exons, loc)
@@ -59,13 +80,13 @@ class DenseGene(GeneBase):
         self.exons["in_features"] = in_features
 
 
-class ConvGene(GeneBase):
+class Conv2dGene(GeneBase):
     allowed_channels = range(2, 128, 4)
     allowed_kernel_size = range(1, 16, 2)
     activations = {"relu", "tanh"}
 
     def __init__(self, in_channels: int, out_channels: int, kernel_size: Union[int, tuple], activation: str, loc: int):
-        if activation not in ConvGene.activations:
+        if activation not in Conv2dGene.activations:
             raise ValueError(f"activation {activation} not in allowed set: {self.activations}")
 
         exons = {"in_channels": in_channels,
@@ -79,11 +100,11 @@ class ConvGene(GeneBase):
         super().mutate(fnc)
 
 
-class MaxPoolGene(GeneBase):
+class MaxPool2dGene(GeneBase):
     allowed_values = range(2, 10)
 
     def __init__(self, size, stride, loc):
-        if size not in MaxPoolGene.allowed_values:
+        if size not in MaxPool2dGene.allowed_values:
             raise ValueError(f"size {size} must be in {[self.allowed_values[0], self.allowed_values[-1]]}")
 
         exons = {"size": size, "stride": stride}
@@ -100,6 +121,20 @@ class MaxPoolGene(GeneBase):
         super().mutate(fnc)
 
 
+class ChannelAttentionGene(GeneBase): ...
+
+
+class SpatialAttentionGene(GeneBase):
+    def __init__(self):
+        self.exons = {"kernel_size": 5, "e2": 2}
+
+    def mutate(self, fnc):
+        super().mutate(fnc)
+
+
+class CBAMGene(GeneBase): ...
+
+
 class Genome:
     image_dims = 128
 
@@ -110,7 +145,7 @@ class Genome:
     def crossover(self, other, fnc) -> 'Genome': ...
 
     def _validate(self):
-        conv_genes = [gene for gene in self.genes if isinstance(gene, ConvGene)]
+        conv_genes = [gene for gene in self.genes if isinstance(gene, Conv2dGene)]
         d = self.image_dims
         adjust_output_size = lambda input, padding, filter_size, stride: 1 + np.floor((input - filter_size + 2 * padding) / stride)
         for gene in conv_genes:
@@ -121,11 +156,12 @@ class Genome:
 
 
 class Population:
-    def __init__(self, config):
+    def __init__(self, config, default=True):
         self.population = []
         self.generation = 0
         self.genepool = GenePool()
         self.config = config
+        self.default_genome = default
 
     def initialize(self):
         for i in range(self.config.population_size):
@@ -133,16 +169,6 @@ class Population:
 
     def __len__(self):
         return len(self.population)
-
-
-
-class GenePool:
-    outplanes = [range(2, 128, 4)]  # num filters in layer
-    conv_ker = [range(2, 32)]  # size of conv filter
-    r_ratio = [range(1, 10)]  # reduction r_ratio
-    att_ker = [range(1, 10)]  # size of att_ker filter
-    maxpool = [range(1, 10)]  # size of maxpool kernel
-    neurons = [range(1, 10_000)]  # number of out features
 
 
 '''
