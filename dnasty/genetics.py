@@ -1,4 +1,4 @@
-from typing import Union, Callable, Any
+from typing import Union
 import abc
 from abc import abstractmethod
 import collections.abc
@@ -7,6 +7,7 @@ import numpy as np
 import inspect
 import torch.nn as nn
 import dnasty.components as components
+import warnings
 
 
 __all__ = [
@@ -52,32 +53,60 @@ class GeneBase(abc.ABC):
         self.location = location  # on chromosome
 
     @abstractmethod
-    def mutate(self, fnc: Callable[[Any], None]) -> None:
-        """ apply mutation to individual gene1 """
-        fnc(self)
+    def mutate(self, *args, **kwargs) -> None:
+        raise NotImplementedError(
+            "Mutate function must be implemented!"
+        )
 
+    @abstractmethod
+    def _validate(self):
+        """
+        Make sure that any modification to the gene remains within allowed range
+        At present this is not to validate the input; those errors LinearGene handled in the __init__ method
+        """
+        raise NotImplementedError(
+            "Must implement abstract method 'validate'!"
+        )
+    
     def __len__(self) -> int:
         return len(self.exons)
 
 
 class LinearGene(GeneBase):
-    allowed_features = range(10, 10_011, 100)
+    allowed_features = range(9, 10_000)
 
-    def __init__(self, in_features, out_features, loc, dropout: bool=False):
-        if in_features not in LinearGene.allowed_features:
+    def __init__(self, in_features, out_features, dropout, loc):
+        if in_features < LinearGene.allowed_features[0]:
             raise ValueError(f"in_features ({in_features}) must be in the allowed range:"
-                             f"{LinearGene.allowed_features[0], LinearGene.allowed_features[-1]}")
+                             f" >{LinearGene.allowed_features[0]}")
         if out_features not in LinearGene.allowed_features:
             raise ValueError(f"out_features ({out_features}) must be in the allowed range:"
                              f"[{LinearGene.allowed_features[0], LinearGene.allowed_features[-1]}]")
+        if not isinstance(dropout, bool):
+            raise ValueError(f"dropout {dropout} should be type bool")
 
-        exons = {"in_features": int(in_features), "out_features": int(out_features), "dropout": dropout}
-        super().__init__(exons, loc)
+        _exons = {"in_features": int(in_features), "out_features": int(out_features), "dropout": dropout}
+        super().__init__(_exons, loc)
 
-    def mutate(self, fnc):
-        in_features = self.exons["in_features"]
-        super().mutate(fnc)
-        self.exons["in_features"] = in_features
+    def mutate(self) -> None:
+        self.exons["dropout"] = not(self.exons["dropout"])
+        self.exons["out_features"] = self.exons["out_features"] + random.randrange(-100, 100, 10)
+        self._validate()
+
+    def _validate(self):
+        if self.exons["out_features"] not in LinearGene.allowed_features:
+            if self.exons["out_features"] > LinearGene.allowed_features[-1]:
+                warnings.warn(
+                    f"out_features {self.exons['out_features']} larger than largest allowed value. "
+                    f"Automatically set to largest allowed value {LinearGene.allowed_features[-1]}."
+                )
+                self.exons["out_features"] = LinearGene.allowed_features[-1]
+            else:
+                warnings.warn(
+                    f"out_features {self.exons['out_features']} smaller than smallest allowed value. "
+                    f"Automatically set to smallest allowed value {LinearGene.allowed_features[0]}."
+                )
+                self.exons["out_features"] = LinearGene.allowed_features[0]
 
 
 class Conv2dGene(GeneBase):
@@ -98,6 +127,8 @@ class Conv2dGene(GeneBase):
 
     def mutate(self, fnc):
         super().mutate(fnc)
+    
+    def _validate(self): ...
 
 
 class MaxPool2dGene(GeneBase):
@@ -120,6 +151,9 @@ class MaxPool2dGene(GeneBase):
     def mutate(self, fnc):
         super().mutate(fnc)
 
+    def _validate(self):
+        ...
+
 
 class ChannelAttentionGene(GeneBase): ...
 
@@ -130,6 +164,8 @@ class SpatialAttentionGene(GeneBase):
 
     def mutate(self, fnc):
         super().mutate(fnc)
+
+    def _validate(self): ...
 
 
 class CBAMGene(GeneBase): ...
