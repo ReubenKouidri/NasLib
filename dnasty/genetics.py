@@ -1,4 +1,3 @@
-from typing import Union
 import abc
 from abc import abstractmethod
 import collections.abc
@@ -12,11 +11,13 @@ import warnings
 
 __all__ = [
     "LinearGene",
-    "Conv2dGene",
+    "ConvBlock2dGene",
     "MaxPool2dGene",
+    "FlattenGene",
     "ChannelAttentionGene",
     "SpatialAttentionGene",
-    "CBAMGene"
+    "CBAMGene",
+    "Genome"
 ]
 
 
@@ -29,9 +30,13 @@ def mag_crossover(g1, g2):
     ...
 
 
+def output_size(input_size, filter_size=1, padding=0, stride=1):
+    return 1 + np.floor((input_size - filter_size + 2 * padding) / stride)
+
+
 def build_layer(gene):
     name = gene.__class__.__name__.replace("Gene", "")
-    module = nn if hasattr(nn, name) else components
+    module = components if hasattr(components, name) else nn
     if not hasattr(module, name):
         raise AttributeError(f"No module {name} found in either torch.nn or dnasty.components")
     sig = inspect.signature(getattr(module, name))
@@ -39,18 +44,18 @@ def build_layer(gene):
     params = [p for p in gene.exons.keys() if p in sig.parameters]
     kwargs = {p: gene.exons[p] for p in params}
     layer = getattr(module, name)(**kwargs)
+
     return layer
 
 
 class GeneBase(abc.ABC):
     """Base class for all Genes to inherit from"""
     @abstractmethod
-    def __init__(self, exons, location):
+    def __init__(self, exons):
         if not isinstance(exons, collections.abc.Mapping):
             raise TypeError(f"exons must be a Mapping type.\n"
                             f"exons {exons} of type {type(exons)} were passed.")
         self.exons = dict(exons)
-        self.location = location  # on chromosome
 
     @abstractmethod
     def mutate(self, *args, **kwargs) -> None:
@@ -75,7 +80,7 @@ class GeneBase(abc.ABC):
 class LinearGene(GeneBase):
     allowed_features = range(9, 10_000)
 
-    def __init__(self, in_features, out_features, dropout, loc):
+    def __init__(self, in_features, out_features, dropout):
         if in_features < LinearGene.allowed_features[0]:
             raise ValueError(f"in_features ({in_features}) must be in the allowed range:"
                              f" >{LinearGene.allowed_features[0]}")
@@ -86,7 +91,7 @@ class LinearGene(GeneBase):
             raise ValueError(f"dropout {dropout} should be type bool")
 
         _exons = {"in_features": int(in_features), "out_features": int(out_features), "dropout": dropout}
-        super().__init__(_exons, loc)
+        super().__init__(_exons)
 
     def mutate(self) -> None:
         self.exons["dropout"] = not(self.exons["dropout"])
@@ -109,21 +114,27 @@ class LinearGene(GeneBase):
                 self.exons["out_features"] = LinearGene.allowed_features[0]
 
 
-class Conv2dGene(GeneBase):
-    allowed_channels = range(2, 128, 4)
-    allowed_kernel_size = range(1, 16, 2)
-    activations = {"relu", "tanh"}
+class FlattenGene:
+    exons = {"start_dim": 1, "end_dim": -1}
 
-    def __init__(self, in_channels: int, out_channels: int, kernel_size: Union[int, tuple], activation: str, loc: int):
-        if activation not in Conv2dGene.activations:
-            raise ValueError(f"activation {activation} not in allowed set: {self.activations}")
+
+class ConvBlock2dGene(GeneBase):
+    allowed_channels = range(4, 65, 4)
+    allowed_kernel_size = range(1, 16, 2)
+    allowed_activations = {"ReLU", "tanh"}
+
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int | tuple, activation: str,
+                 bn: bool | None = True):
+        if activation not in self.__class__.allowed_activations:
+            raise ValueError(f"activation {activation} not in allowed set: {self.allowed_activations}")
 
         exons = {"in_channels": in_channels,
                  "out_channels": out_channels,
                  "kernel_size": kernel_size,
-                 "activation": activation}
+                 "activation": activation,
+                 "batch_norm": bn}
 
-        super().__init__(exons, loc)
+        super().__init__(exons)
 
     def mutate(self, fnc):
         super().mutate(fnc)
@@ -134,12 +145,12 @@ class Conv2dGene(GeneBase):
 class MaxPool2dGene(GeneBase):
     allowed_values = range(2, 10)
 
-    def __init__(self, size, stride, loc):
-        if size not in MaxPool2dGene.allowed_values:
-            raise ValueError(f"size {size} must be in {[self.allowed_values[0], self.allowed_values[-1]]}")
+    def __init__(self, kernel_size, stride):
+        if kernel_size not in set(MaxPool2dGene.allowed_values):
+            raise ValueError(f"kernel_size {kernel_size} must be in {[self.allowed_values[0], self.allowed_values[-1]]}")
 
-        exons = {"size": size, "stride": stride}
-        super().__init__(exons, loc)
+        exons = {"kernel_size": kernel_size, "stride": stride}
+        super().__init__(exons)
 
     @staticmethod
     def _mutate():
@@ -174,14 +185,26 @@ class CBAMGene(GeneBase): ...
 class Genome:
     image_dims = 128
 
+    @property
+    def outdims(self):
+        dims = self.image_dims
+        for gene in self.genes:
+            name = gene.__class__.__name__
+            if "Conv" in name:
+                dims = output_size(dims, gene.exons["kernel_size"], 0, 1)
+            elif "MaxPool" in name:
+                dims = output_size(dims, gene.exons["kernel_size"], 0, gene.exons["stride"])
+
+        return dims
+
     def __init__(self, genes):
-        self.genes = genes
+        self.genes = list(genes)
         self.fitness = 0.0
 
     def crossover(self, other, fnc) -> 'Genome': ...
 
     def _validate(self):
-        conv_genes = [gene for gene in self.genes if isinstance(gene, Conv2dGene)]
+        conv_genes = [gene for gene in self.genes if isinstance(gene, ConvBlock2dGene)]
         d = self.image_dims
         adjust_output_size = lambda input, padding, filter_size, stride: 1 + np.floor((input - filter_size + 2 * padding) / stride)
         for gene in conv_genes:
@@ -189,22 +212,6 @@ class Genome:
 
     def __len__(self):
         return len(self.genes)
-
-
-class Population:
-    def __init__(self, config, default=True):
-        self.population = []
-        self.generation = 0
-        self.genepool = GenePool()
-        self.config = config
-        self.default_genome = default
-
-    def initialize(self):
-        for i in range(self.config.population_size):
-            genome = Genome()
-
-    def __len__(self):
-        return len(self.population)
 
 
 '''
