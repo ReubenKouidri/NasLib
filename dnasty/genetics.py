@@ -119,11 +119,11 @@ class FlattenGene:
 
 
 class ConvBlock2dGene(GeneBase):
-    allowed_channels = range(4, 65, 4)
-    allowed_kernel_size = range(1, 16, 2)
+    allowed_channels = (2**i for i in range(1, 6))
+    allowed_kernel_size = range(2, 16, 2)
     allowed_activations = {"ReLU", "tanh"}
 
-    def __init__(self, in_channels: int, out_channels: int, kernel_size: int | tuple, activation: str,
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int | tuple, activation: str = "ReLU",
                  bn: bool | None = True):
         if activation not in self.__class__.allowed_activations:
             raise ValueError(f"activation {activation} not in allowed set: {self.allowed_activations}")
@@ -189,13 +189,28 @@ class Genome:
     def outdims(self):
         dims = self.image_dims
         for gene in self.genes:
-            name = gene.__class__.__name__
-            if "Conv" in name:
+            if isinstance(gene, ConvBlock2dGene):
                 dims = output_size(dims, gene.exons["kernel_size"], 0, 1)
-            elif "MaxPool" in name:
+            elif isinstance(gene, MaxPool2dGene):
                 dims = output_size(dims, gene.exons["kernel_size"], 0, gene.exons["stride"])
+            #
+            # name = gene.__class__.__name__
+            # if "Conv" in name:
+            #     dims = output_size(dims, gene.exons["kernel_size"], 0, 1)
+            # elif "MaxPool" in name:
+            #     dims = output_size(dims, gene.exons["kernel_size"], 0, gene.exons["stride"])
 
         return dims
+
+    def _sync_layers(self):
+        prev_out_channels = 0
+
+        for gene in self.genes:
+            if isinstance(gene, ConvBlock2dGene):
+                if gene.exons["in_channels"] != 1:
+                    gene.exons["in_channels"] = prev_out_channels
+
+                prev_out_channels = gene.exons["out_channels"]
 
     def __init__(self, genes):
         self.genes = list(genes)
