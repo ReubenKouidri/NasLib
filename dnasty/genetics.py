@@ -7,6 +7,7 @@ import inspect
 import torch.nn as nn
 import dnasty.components as components
 import warnings
+import copy
 
 
 __all__ = [
@@ -72,7 +73,23 @@ class GeneBase(abc.ABC):
         raise NotImplementedError(
             "Must implement abstract method 'validate'!"
         )
-    
+
+    def __getattr__(self, name):
+        cls = self.__class__
+        if hasattr(cls, name):  # search static attributes
+            return getattr(cls, name)
+        elif name in self.exons:
+            return self.exons[name]
+        else:
+            raise AttributeError(f"Cannot find {name} in {self.__name__ }")
+
+    def __deepcopy__(self, memo=None):
+        cls = self.__class__
+        exons_copy = copy.deepcopy(self.exons, memo)
+        new_obj = cls(**exons_copy)
+        memo[id(self)] = new_obj
+        return new_obj
+
     def __len__(self) -> int:
         return len(self.exons)
 
@@ -124,7 +141,7 @@ class ConvBlock2dGene(GeneBase):
     allowed_activations = {"ReLU", "tanh"}
 
     def __init__(self, in_channels: int, out_channels: int, kernel_size: int | tuple, activation: str = "ReLU",
-                 bn: bool | None = True):
+                 batch_norm: bool | None = True):
         if activation not in self.__class__.allowed_activations:
             raise ValueError(f"activation {activation} not in allowed set: {self.allowed_activations}")
 
@@ -132,7 +149,7 @@ class ConvBlock2dGene(GeneBase):
                  "out_channels": out_channels,
                  "kernel_size": kernel_size,
                  "activation": activation,
-                 "batch_norm": bn}
+                 "batch_norm": batch_norm}
 
         super().__init__(exons)
 
@@ -203,13 +220,12 @@ class Genome:
         return dims
 
     def _sync_layers(self):
-        prev_out_channels = 0
+        prev_out_channels = 1
 
         for gene in self.genes:
             if isinstance(gene, ConvBlock2dGene):
-                if gene.exons["in_channels"] != 1:
-                    gene.exons["in_channels"] = prev_out_channels
-
+                in_chans = gene.exons["in_channels"]
+                gene.exons["in_channels"] = prev_out_channels if in_chans != prev_out_channels else in_chans
                 prev_out_channels = gene.exons["out_channels"]
 
     def __init__(self, genes):
