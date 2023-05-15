@@ -1,14 +1,12 @@
 from collections import abc
-from typing import Union, Any, List, TypeVar
+from typing import Union, Any, List
 
-
-TConfig = TypeVar("TConfig")
 
 
 class Config:
     """ object providing read-only access to configurations """
 
-    def __new__(cls, arg: Union[abc.MutableSequence, Any]) -> Union[TConfig, List[TConfig], Any]:
+    def __new__(cls, arg: Union[abc.MutableSequence, Any]) -> Union['Config', List['Config'], Any]:
         if isinstance(arg, abc.Mapping):
             return super().__new__(cls)
         elif isinstance(arg, abc.MutableSequence):
@@ -17,7 +15,7 @@ class Config:
             return arg
 
     @staticmethod
-    def convert_type(value: str):
+    def _convert_type(value: str):
         try:
             value = int(value)
         except ValueError:
@@ -27,16 +25,16 @@ class Config:
                 pass
         return value
 
-    def convert(self, d: dict) -> dict:
+    def _convert(self, d: dict) -> dict:
         for key, value in d.items():
             if isinstance(value, dict):
-                d[key] = self.convert(value)
+                d[key] = self._convert(value)
             elif isinstance(value, str):
-                d[key] = self.convert_type(value)
+                d[key] = self._convert_type(value)
         return d
 
     def __init__(self, mapping) -> None:
-        self.__data = self.convert(dict(mapping))
+        self.__data = self._convert(dict(mapping))
 
     def __getattr__(self, name):
         if hasattr(self.__data, name):
