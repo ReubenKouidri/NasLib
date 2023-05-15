@@ -81,7 +81,7 @@ class GeneBase(abc.ABC):
         elif name in self.exons:
             return self.exons[name]
         else:
-            raise AttributeError(f"Cannot find {name} in {self.__name__ }")
+            raise AttributeError(f"No attribute {name} in {self.__name__ }")
 
     def __deepcopy__(self, memo=None):
         cls = self.__class__
@@ -200,28 +200,21 @@ class CBAMGene(GeneBase): ...
 
 
 class Genome:
-    image_dims = 128
+    reduce_func = lambda self, d, f, p, s: 1 + (d - f + 2 * p) // s
 
     @property
     def outdims(self):
         dims = self.image_dims
         for gene in self.genes:
             if isinstance(gene, ConvBlock2dGene):
-                dims = output_size(dims, gene.exons["kernel_size"], 0, 1)
+                dims = self.reduce_func(dims, gene.kernel_size, 0, 1)
             elif isinstance(gene, MaxPool2dGene):
-                dims = output_size(dims, gene.exons["kernel_size"], 0, gene.exons["stride"])
-            #
-            # name = gene.__class__.__name__
-            # if "Conv" in name:
-            #     dims = output_size(dims, gene.exons["kernel_size"], 0, 1)
-            # elif "MaxPool" in name:
-            #     dims = output_size(dims, gene.exons["kernel_size"], 0, gene.exons["stride"])
+                dims = self.reduce_func(dims, gene.kernel_size, 0, gene.kernel_size)
 
         return dims
 
     def _sync_layers(self):
         prev_out_channels = 1
-
         for gene in self.genes:
             if isinstance(gene, ConvBlock2dGene):
                 in_chans = gene.exons["in_channels"]
@@ -231,15 +224,9 @@ class Genome:
     def __init__(self, genes):
         self.genes = list(genes)
         self.fitness = 0.0
+        self.image_dims = 128
 
     def crossover(self, other, fnc) -> 'Genome': ...
-
-    def _validate(self):
-        conv_genes = [gene for gene in self.genes if isinstance(gene, ConvBlock2dGene)]
-        d = self.image_dims
-        adjust_output_size = lambda input, padding, filter_size, stride: 1 + np.floor((input - filter_size + 2 * padding) / stride)
-        for gene in conv_genes:
-            d = adjust_output_size(d, 0, gene.exons["kernel_size"], 1)
 
     def __len__(self):
         return len(self.genes)
