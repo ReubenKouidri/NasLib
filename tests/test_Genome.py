@@ -5,9 +5,6 @@ import copy
 
 
 class TestGenome(unittest.TestCase):
-    # TODO
-    #   - add test for __getattr__
-
     def setUp(self):
         self.conv = ConvBlock2dGene(1, 32, 10)
         self.conv2 = ConvBlock2dGene(1, 50, 10)
