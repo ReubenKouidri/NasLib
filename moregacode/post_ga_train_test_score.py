@@ -89,7 +89,7 @@ def create_model(genome):
     genome.chromosomes[genome.id[0]].chromosomes['in_features'] = d
 
     for i, dense in enumerate(genome.chromosomes[genome.id[0]:]):
-        dropout = True if i < genome.chromosomes[-1].location else False  # i.e. no dropout for last layer
+        dropout = True if i < genome.chromosomes[-1].loc1 else False  # i.e. no dropout for last layer
         db = DenseBlock(in_features=dense.chromosomes['in_features'],
                         out_features=dense.chromosomes['out_features'],
                         relu=True,
@@ -145,7 +145,7 @@ def evaluate(model, criterion, valloader, local_rank):
     total = 0
     correct = 0
 
-    model.eval()
+    model.validate(,
     for i, data in enumerate(valloader, 0):
         with torch.no_grad():
             inputs, labels = data

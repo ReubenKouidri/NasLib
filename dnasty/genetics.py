@@ -48,14 +48,15 @@ def build_layer(gene):
 
     return layer
 
-
 class GeneBase(abc.ABC):
     """Base class for all Genes to inherit from"""
+    #TODO
+    # - update getattr method to check for non-static params in instances
     @abstractmethod
     def __init__(self, exons):
         if not isinstance(exons, collections.abc.Mapping):
             raise TypeError(f"exons must be a Mapping type.\n"
-                            f"exons {exons} of type {type(exons)} were passed.")
+                            f"Exons {exons} of type {type(exons)} were passed.")
         self.exons = dict(exons)
 
     @abstractmethod
@@ -200,7 +201,7 @@ class CBAMGene(GeneBase): ...
 
 
 class Genome:
-    reduce_func = lambda self, d, f, p, s: 1 + (d - f + 2 * p) // s
+    reduce_func = lambda self, d, f, p, s: 1 + (d - f + 2 * p) // s  # calc output_size
 
     @property
     def outdims(self):
@@ -217,16 +218,24 @@ class Genome:
         prev_out_channels = 1
         for gene in self.genes:
             if isinstance(gene, ConvBlock2dGene):
-                in_chans = gene.exons["in_channels"]
-                gene.exons["in_channels"] = prev_out_channels if in_chans != prev_out_channels else in_chans
-                prev_out_channels = gene.exons["out_channels"]
+                in_chans = gene.in_channels
+                gene.in_channels = prev_out_channels if in_chans != prev_out_channels else in_chans
+                prev_out_channels = gene.out_channels
+
+    def crossover(self, other, fnc) -> 'Genome':
+        ...
 
     def __init__(self, genes):
         self.genes = list(genes)
         self.fitness = 0.0
         self.image_dims = 128
 
-    def crossover(self, other, fnc) -> 'Genome': ...
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        genes_copy = copy.deepcopy(self.genes, memo)
+        new_genome = cls(genes_copy)
+        memo[id(self)] = new_genome
+        return new_genome
 
     def __len__(self):
         return len(self.genes)

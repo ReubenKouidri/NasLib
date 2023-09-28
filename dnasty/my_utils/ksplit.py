@@ -4,7 +4,7 @@ from torch.utils.data import Subset
 from typing import MutableSequence, TypeVar, Callable, Any
 import collections.abc as abc
 import functools
-from datasets.CPSCDataset import CPSCDataset2D
+from datasets import CPSCDataset2D
 random.seed(9834275)
 
 T_co = TypeVar('T_co', covariant=True)
@@ -22,22 +22,28 @@ def split(dataset, ratio: tuple) -> tuple:
     size = len(dataset)
     indices = list(range(size))
     random.shuffle(indices)
-    split_sizes = (int(size * ratio[0]), int(size * ratio[1]), int(size * ratio[2]))
 
-    train_indices = indices[0:split_sizes[0]]
-    eval_indices = indices[split_sizes[0]:split_sizes[0] + split_sizes[1]]
-    test_indices = indices[split_sizes[0] + split_sizes[1]:]
+    split_sizes = [int(size * ratio[i]) for i in range(len(ratio))]  # either
+    if len(ratio) == 2:
+        train_indices = indices[:split_sizes[0]]
+        eval_indices = indices[split_sizes[0]:]
+        return train_indices, eval_indices
+    else:
+        train_indices = indices[0:split_sizes[0]]
+        eval_indices = indices[split_sizes[0]:split_sizes[0] + split_sizes[1]]
+        test_indices = indices[split_sizes[0] + split_sizes[1]:]
 
-    train_set = Subset(dataset, indices=list(train_indices))
-    eval_set = Subset(dataset, indices=list(eval_indices))
-    test_set = Subset(dataset, indices=list(test_indices))
+        train_set = Subset(dataset, indices=list(train_indices))
+        eval_set = Subset(dataset, indices=list(eval_indices))
+        test_set = Subset(dataset, indices=list(test_indices))
 
-    return train_set, eval_set, test_set
+        return train_set, eval_set, test_set
 
 
 def split_dataset(dataset: CPSCDataset2D, ksplit: tuple[int, tuple]) -> tuple[tuple]:
-    return tuple(split(dataset, ksplit[1]) for _ in range(ksplit[0]))
-
+    if ksplit[0] > 1:
+        return tuple(split(dataset, ksplit[1]) for _ in range(ksplit[0]))
+    return split(dataset, ksplit[1])
 
 # decorator to apply kfold split on a load_dataset() function
 def ksplit(k: int, ratio: abc.Sequence) -> Callable[..., Any]:

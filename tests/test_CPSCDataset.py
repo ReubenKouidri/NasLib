@@ -1,8 +1,10 @@
 import unittest
 import numpy as np
 import torch
-from my_utils.wavelets import mexh
-from datasets.CPSCDataset import CPSCDataset, CPSCDataset2D
+from dnasty.my_utils.wavelets import mexh
+from datasets import CPSCDataset, CPSCDataset2D
+import coverage
+
 
 #TODO:
 # add test cases for:
@@ -11,8 +13,8 @@ from datasets.CPSCDataset import CPSCDataset, CPSCDataset2D
 
 class TestCPSCDataset(unittest.TestCase):
     def setUp(self):
-        self.dataset = CPSCDataset(data_path="../datasets/cpsc_data/test100",
-                                   reference_path="../datasets/cpsc_data/reference300.csv",
+        self.dataset = CPSCDataset(data_dir="datasets/cpsc_data/test100",
+                                   reference_path="datasets/cpsc_data/reference300.csv",
                                    normalize=True,
                                    smoothen=True,
                                    trim=True,
@@ -49,8 +51,8 @@ class TestCPSCDataset(unittest.TestCase):
 
 class TestCPSCDataset2D(unittest.TestCase):
     def setUp(self):
-        self.dataset = CPSCDataset2D(data_path="../datasets/cpsc_data/test100",
-                                     reference_path="../datasets/cpsc_data/reference300.csv",
+        self.dataset = CPSCDataset2D(data_dir="datasets/cpsc_data/test100",
+                                     reference_path="datasets/cpsc_data/reference300.csv",
                                      wavelet="mexh",
                                      lead=3)
 
@@ -85,3 +87,12 @@ class TestCPSCDataset2D(unittest.TestCase):
         self.assertEqual(img.shape, (128, 128))
         self.assertTrue(isinstance(img, np.ndarray))
         self.assertTrue(np.all(np.isfinite(img)))
+
+
+if __name__ == "__main__":
+    cov = coverage.Coverage()
+    cov.start()
+    unittest.main()
+    cov.stop()
+    cov.save()
+    cov.report()

@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 import torch.nn.functional as F
 import csv
-from uga_components import ResBlock1, ResBlock2, MaxPool2D, DenseBlock, Flatten
 from ArrhythmiaDataset2D import ArrhythmiaDataset
 from uga2_runs import RunBuilder, Controls
 from torch.utils.data import random_split
@@ -109,7 +108,7 @@ def train(model, optimizer, criterion, trainloader, device):
 
 @torch.no_grad()
 def evaluate(model, criterion, valloader, device):
-    model.eval()
+    model.validate(,
     total_loss = 0.0
     epoch_steps = 0
     total = 0
@@ -135,7 +134,7 @@ def evaluate(model, criterion, valloader, device):
 def test(model, testloader, device):
     correct = 0
     total = 0
-    model.eval()
+    model.validate(,
     for data in testloader:
         images, labels = data
         images = images.to(device)
@@ -198,14 +197,12 @@ def assess_genome(genome):
 
 
 class GenePool:
-    def __init__(self, filter_set_conv, kernel_set_conv, kernel_set_att, r_pool, max_pool_set,
-                 neuron_set):
-        self.outplanes_genepool = filter_set_conv
-        self.conv_ker_genepoool = kernel_set_conv
-        self.reduction_genepool = r_pool
-        self.att_ker_genepool = kernel_set_att
-        self.maxpool_genepool = max_pool_set
-        self.neuron_genepool = neuron_set
+    outplanes = [range(2, 128, 4)]  # num filters in layer
+    conv_ker = [range(2, 32)]  # size of conv filter
+    r_ratio = [range(1, 10)]  # reduction r_ratio
+    att_ker = [range(1, 10)]  # size of att_ker filter
+    maxpool = [range(1, 10)]  # size of maxpool kernel
+    neurons = [range(1, 10_000)]  # number of out features
 
 
 class Gene:
@@ -214,13 +211,13 @@ class Gene:
         - tuples encoding each layer
         - layer = CNN: chromosomes = ("conv_ker_0": val, "in_planes_0": val, "out_planes_0": val, "att_ker": val, "r_ratio": val)
         - layer = DL: chromosomes = ("in_layers": val, "out_layers": val, "num_neurons": val)
-        - location = location in the genome i.e. list of chromosomes
+        - loc1 = loc1 in the genome i.e. list of chromosomes
     """
 
     def __init__(self, location, sequence, gene_type):
         self.species_type = [(2, 2), 2]
         self.sequence = sequence
-        self.gene_type = gene_type  # conv gene or dense gene
+        self.gene_type = gene_type  # conv gene1 or dense gene1
         self.location = location
         self.alpha = 100
 
@@ -260,7 +257,7 @@ class Gene:
             #print("AFTER mix", self.chromosomes)
 
         else:
-            print("WARNING: gene mixing not implemented!")
+            print("WARNING: gene1 mixing not implemented!")
 
     def __len__(self):
         return len(self.sequence)
@@ -285,11 +282,6 @@ class Genome:
             d = output_size(d, self.genes[j].chromosomes['mp_ker'], padding=0, stride=self.genes[j].chromosomes['mp_ker'])
         return d
 
-    def __init__(self, species_type):
-        self.species_type = species_type
-        self.genes = []
-        self.fitness = None
-
     def crossover(self, parent2, generation, crossover_mode):
         """
             :returns: child
@@ -298,7 +290,7 @@ class Genome:
             - dense.chromosomes = (in_features, out_features)
         """
         genome2 = parent2
-        #print("IN CROSSOVER")
+        # print("IN CROSSOVER")
         if crossover_mode == 'random':
             # randomly selecting the chromosomes to be crossed - not all chromosomes are crossed
             num_res_genes = len(self.species_type[0])  # total number of res chromosomes
@@ -307,7 +299,7 @@ class Genome:
                 np.arange(1, num_res_genes))  # randomly choose the number of res chromosomes to be crossed (at least 1)
             res_locations = list(np.arange(num_res_genes))  # [0, 1]
             random.shuffle(res_locations)  # e.g. [1, 0]
-            res_locations = res_locations[:res_mixes]  # e.g. chromosomes to be crossed are at location [1] if res_mixes = 1
+            res_locations = res_locations[:res_mixes]  # e.g. chromosomes to be crossed are at loc1 [1] if res_mixes = 1
 
             dense_mixes = random.choice(np.arange(1, num_dense_genes))  # number of dense chromosomes to be crossed over
             dense_locations = list(np.arange(num_dense_genes))  # locations of the dense chromosomes
@@ -319,15 +311,21 @@ class Genome:
                 self.genes[location].mix(genome2.chromosomes[location], generation=generation)
                 # e.g. res_1.mix(other res_1)
             for location in dense_locations:
-                self.genes[num_res_genes + location].mix(genome2.chromosomes[num_res_genes + location], generation=generation)
+                self.genes[num_res_genes + location].mix(genome2.chromosomes[num_res_genes + location],
+                                                         generation=generation)
 
         elif crossover_mode == 'mean':
-            #print("before crossover chromosomes: ")
-            #print([gene.chromosomes for gene in self.chromosomes])
+            # print("before crossover chromosomes: ")
+            # print([gene1.chromosomes for gene1 in self.chromosomes])
             for i in np.arange(self.__len__()):
                 self.genes[i].mix(genome2.chromosomes[i], generation=generation)
-            #print("after crossover:")
-            #print([gene.chromosomes for gene in self.chromosomes])
+            # print("after crossover:")
+            # print([gene1.chromosomes for gene1 in self.chromosomes])
+
+    def __init__(self, species_type):
+        self.species_type = species_type
+        self.genes = []
+        self.fitness = None
 
     def __len__(self):
         return len(self.genes)
@@ -415,9 +413,9 @@ class Population:
             child = Genome(parent_1.id)
             child.chromosomes = parent_1.chromosomes
             child.crossover(parent_2, generation=self.generation, crossover_mode=self.configs.crossover_mode)
-            for gene in child.chromosomes:
+            for gene1 in child.chromosomes:
                 if random.random() < self.configs.mutation_rate:
-                    gene.mutate(self.genepool)
+                    gene1.mutate(self.genepool)
             if validate_genome(child, d=128):
                 children.append(child)
                 j += 1"""
@@ -460,7 +458,7 @@ class Population:
             :param species_type: e.g. [(ResBlocks, num_conv layers per RB),  dense_layers] = [(2,2), 2].
 
             Notes:
-                A gene is created for each ResBlock and dense layer.
+                A gene1 is created for each ResBlock and dense layer.
                 Dense layer chromosomes just specify the number of neurons,
                 whereas ResBlock chromosomes specify more...
         """
@@ -471,7 +469,7 @@ class Population:
                 for j in range(len(species_type[0])):  # for every RB
                     sequence = create_rb_sequence(variant=species_type[0][j], genepool=self.genepool)
                     gene = Gene(location=j, sequence=sequence,
-                                gene_type=f'RB{species_type[0][j]}')  # should be type=RBx, gene should be "chromosome"
+                                gene_type=f'RB{species_type[0][j]}')  # should be type=RBx, gene1 should be "chromosome"
                     genome.genes.append(gene)
                 if genome.output_size > 2:
                     start = len(species_type[0])
@@ -490,138 +488,3 @@ class Population:
 
                     self.population.append(genome)
                     break
-
-
-class StatisticsReporter:
-    """
-        - Gathers (via the reporting interface) and provides (to callers and/or a file)
-          the most-fit genomes and information on genome/species fitness and species sizes.
-        - Does NOT log models due to memory, and the fact that models can be recreated from the genomes
-    """
-
-    def __init__(self):
-        self.most_fit_genomes = []  # list containing the fittest genomes from each generation
-        self.generation_statistics = []  # list of dicts containing: mean, med, std, var per generation
-
-    def best_genomes(self, n):
-        """Returns the n most fit genomes ever seen."""
-
-        def key(g):
-            return g.fitness
-
-        return sorted(self.most_fit_genomes, key=key, reverse=True)[:n]
-
-    def best_genome(self):
-        """Returns the most fit genome ever seen."""
-        return self.best_genomes(1)[0]
-
-    def highest_score(self):
-        """Returns the fitness score for the best genome"""
-        return self.best_genome().fitness
-
-    def get_fitness_stat(self, func):
-        df = pd.DataFrame().from_dict(self.generation_statistics)  # list of dicts, so use from_dict
-        stats = list(df[f'{func}_fitness'])
-        return stats
-
-    def get_fitness_mins(self):
-        """Get the per-generation mean fitness."""
-        return self.get_fitness_stat("min")
-
-    def get_fitness_means(self):
-        """Get the per-generation mean fitness."""
-        return self.get_fitness_stat("mean")
-
-    def get_fitness_stds(self):
-        """Get the per-generation standard deviation of the fitness."""
-        return self.get_fitness_stat("std")
-
-    def get_fitness_vars(self):
-        return self.get_fitness_stat("var")
-
-    def get_fitness_meds(self):
-        """Get the per-generation median fitness."""
-        return self.get_fitness_stat("med")
-
-    def save(self, basepath):
-        history_path = f'{basepath}_history.csv'
-        top_n_path = f'{basepath}_top_genomes.pt'
-        self.save_history(history_path)
-        self.save_top_n_genomes(top_n_path)
-
-    def save_history(self, history_path):
-        df = pd.DataFrame().from_dict(self.generation_statistics)
-        df.to_csv(history_path, sep=',', index=False)
-
-    def save_top_n_genomes(self, top_n_path, n=1):
-        """
-        Make sure the path contains info to identify mutation mode
-        filename = best_n_genomes
-        crossover_mode = 'mean' or 'rand'
-        """
-        torch.save(self.best_genomes(n), top_n_path)
-
-
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--epochs", default=20, type=int, metavar="N", help="number of total epochs to configs",
-    )
-    parser.add_argument(
-        "--num_generations", default=50, type=int, metavar="N", help="number of total generations to configs",
-    )
-    parser.add_argument(
-        "--train_dir", default='validation_set', type=str, metavar="N", help="path to directory containing train data",
-    )
-    parser.add_argument(
-        "--train_ref", default='REF.csv', type=str, metavar="N", help="path to train labels",
-    )
-    parser.add_argument(
-        "--test_dir", default='validation_set', type=str, metavar="N", help="path to directory containing test data",
-    )
-    parser.add_argument(
-        "--test_ref", default='REF.csv', type=str, metavar="N", help="path to test labels",
-    )
-    parser.add_argument(
-        "--pop_size", default=10, type=int, metavar="N", help="size of population",
-    )
-    parser.add_argument(
-        "--keep", default=2, type=int, metavar="N", help="how many individuals are protected from extinction",
-    )
-    return parser.parse_args()
-
-
-def generate_model():
-    filter_set = np.arange(16, 129)
-    conv_ker_set = np.arange(2, 13)
-    att_ker_set = np.arange(2, 9)
-    red_ratio_set = np.arange(2, 11)
-    max_pool_set = np.arange(2, 11)
-    neuron_set = np.arange(200, 10000)
-
-    genepool = GenePool(
-        filter_set_conv=filter_set,
-        kernel_set_conv=conv_ker_set,
-        kernel_set_att=att_ker_set,
-        r_pool=red_ratio_set,
-        max_pool_set=max_pool_set,
-        neuron_set=neuron_set
-    )
-    for run in RunBuilder.get_runs(Controls.get_hyperparams()):
-        p = Population(genepool, run)
-        p.initiate_population(run.species)
-        # x = crossover mode, s = species, m = mutation_rate, st = survival threshold,
-        # ''.join(map(str, l)) maps e.g. (1, 2, 2, 1) -> '1221'
-        basepath = f"x_{run.crossover_mode}_s_{''.join(map(str, run.species[0]))}_{run.species[1]}_m_{str(run.mutation_rate)}_st_{run.survival_threshold}"
-        for gen in range(args.num_generations):
-            p.assess_genomes()
-            p.fuck()
-            p.save(basepath=basepath)
-            p.zero()
-
-    print("DONE")
-
-
-if __name__ == '__main__':
-    args = get_args()
-    generate_model()

@@ -1,4 +1,4 @@
-from dnasty.components import ConvBlock2D, MaxPool2D, CBAM, DenseBlock, Flatten
+from dnasty.components import ConvBlock2d, MaxPool2D, CBAM, DenseBlock, Flatten
 import torch.nn as nn
 from collections import OrderedDict
 
@@ -7,12 +7,12 @@ class S_2RB2D2(nn.Sequential):
     """sequential, 2x RB(2 conv each before attention) 2x Dense"""
     def __init__(self):
         architecture = OrderedDict([
-            ("ConvBlock1", ConvBlock2D(1, 32, 10, bn=True, activation="ReLU")),
-            ("ConvBlock2", ConvBlock2D(32, 32, 10, bn=True, activation="ReLU")),
+            ("ConvBlock1", ConvBlock2d(1, 32, 10, bn=True, activation="ReLU")),
+            ("ConvBlock2", ConvBlock2d(32, 32, 10, bn=True, activation="ReLU")),
             ("MP1", MaxPool2D(2, 2)),
             ("CBAM1", CBAM(32, se_ratio=4, kernel_size=4)),
-            ("ConvBlock3", ConvBlock2D(32, 32, 8, bn=True, activation="ReLU")),
-            ("ConvBlock4", ConvBlock2D(32, 32, 4, bn=True, activation="ReLU")),
+            ("ConvBlock3", ConvBlock2d(32, 32, 8, bn=True, activation="ReLU")),
+            ("ConvBlock4", ConvBlock2d(32, 32, 4, bn=True, activation="ReLU")),
             ("MP2", MaxPool2D(2, 2)),
             ("CBAM2", CBAM(32, se_ratio=4, kernel_size=4)),
             ("Flatten", Flatten()),

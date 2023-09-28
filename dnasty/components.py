@@ -89,7 +89,7 @@ class SpatialAttention(nn.Module):
         super(SpatialAttention, self).__init__()
         self.kernel_size = kernel_size
         self.compress = ChannelPool()
-        self.conv = ConvBlock2D(in_channels=2, out_channels=1, kernel_size=self.kernel_size,
+        self.conv = ConvBlock2d(in_channels=2, out_channels=1, kernel_size=self.kernel_size,
                                 stride=1, padding='same', bn=False, activation="Sigmoid")
 
     def forward(self, x: Tensor) -> Tensor:
@@ -98,7 +98,7 @@ class SpatialAttention(nn.Module):
         return torch.mul(x, sa)  # element-wise
 
 
-class ConvBlock2D(nn.Sequential):
+class ConvBlock2d(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
@@ -111,7 +111,7 @@ class ConvBlock2D(nn.Sequential):
             bn: bool | None = True,
             activation: str | None = None
     ) -> None:
-        super(ConvBlock2D, self).__init__()
+        super(ConvBlock2d, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
@@ -173,7 +173,7 @@ class CBAM(nn.Module):
         return cb + x
 
 
-class DenseBlock(nn.Sequential):
+class LinearBlockGene(nn.Sequential):
     def __init__(
             self,
             in_features: int,
@@ -181,9 +181,9 @@ class DenseBlock(nn.Sequential):
             activation: str | None,
             dropout: bool | None = True
     ) -> None:
-        super(DenseBlock, self).__init__()
+        super(LinearBlockGene, self).__init__()
         self.linear = nn.Linear(in_features, out_features)
         if activation:
             self.add_module(f"{activation}", make_activation(activation))
         if dropout:
-            self.add_module("dropout", nn.Dropout(p=0.5))
+            self.add_module("dropout", nn.Dropout(p=0.95))

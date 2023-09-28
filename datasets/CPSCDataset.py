@@ -7,7 +7,7 @@ from tsmoothie import ConvolutionSmoother
 from typing import Any
 import os
 import csv
-import my_utils.wavelets as wavelets_module
+import dnasty.my_utils.wavelets as wavelets_module
 
 
 class CPSCDataset(Dataset):

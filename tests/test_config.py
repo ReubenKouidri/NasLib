@@ -1,7 +1,5 @@
 import unittest
-from collections import abc
-from keyword import iskeyword
-from my_utils.config import Config
+from dnasty.my_utils.config import Config
 
 
 class TestConfig(unittest.TestCase):
