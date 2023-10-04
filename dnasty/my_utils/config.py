@@ -2,7 +2,6 @@ from collections import abc
 from typing import Union, Any, List
 
 
-
 class Config:
     """ object providing read-only access to configurations """
 
@@ -16,13 +15,19 @@ class Config:
 
     @staticmethod
     def _convert_type(value: str):
+        """
+        First try to convert to int; if fails, try to convert to float; if fails, try NoneType; else leave as str
+        """
         try:
             value = int(value)
         except ValueError:
             try:
                 value = float(value)
             except ValueError:
-                pass
+                if value == "None":
+                    value = None
+                else:
+                    pass
         return value
 
     def _convert(self, d: dict) -> dict:
