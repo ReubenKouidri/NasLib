@@ -9,7 +9,6 @@ import dnasty.components as components
 import warnings
 import copy
 
-
 __all__ = [
     "LinearGene",
     "ConvBlock2dGene",
@@ -48,9 +47,11 @@ def build_layer(gene):
 
     return layer
 
+
 class GeneBase(abc.ABC):
     """Base class for all Genes to inherit from"""
-    #TODO
+
+    # TODO
     # - update getattr method to check for non-static params in instances
     @abstractmethod
     def __init__(self, exons):
@@ -82,7 +83,7 @@ class GeneBase(abc.ABC):
         elif name in self.exons:
             return self.exons[name]
         else:
-            raise AttributeError(f"No attribute {name} in {self.__name__ }")
+            raise AttributeError(f"No attribute {name} in {self.__name__}")
 
     def __deepcopy__(self, memo=None):
         cls = self.__class__
@@ -112,7 +113,7 @@ class LinearGene(GeneBase):
         super().__init__(_exons)
 
     def mutate(self) -> None:
-        self.exons["dropout"] = not(self.exons["dropout"])
+        self.exons["dropout"] = not (self.exons["dropout"])
         self.exons["out_features"] = self.exons["out_features"] + random.randrange(-100, 100, 10)
         self._validate()
 
@@ -137,7 +138,7 @@ class FlattenGene:
 
 
 class ConvBlock2dGene(GeneBase):
-    allowed_channels = (2**i for i in range(1, 6))
+    allowed_channels = (2 ** i for i in range(1, 6))
     allowed_kernel_size = range(2, 16, 2)
     allowed_activations = {"ReLU", "tanh"}
 
@@ -156,7 +157,7 @@ class ConvBlock2dGene(GeneBase):
 
     def mutate(self, fnc):
         super().mutate(fnc)
-    
+
     def _validate(self): ...
 
 
@@ -165,7 +166,8 @@ class MaxPool2dGene(GeneBase):
 
     def __init__(self, kernel_size, stride):
         if kernel_size not in set(MaxPool2dGene.allowed_values):
-            raise ValueError(f"kernel_size {kernel_size} must be in {[self.allowed_values[0], self.allowed_values[-1]]}")
+            raise ValueError(
+                f"kernel_size {kernel_size} must be in {[self.allowed_values[0], self.allowed_values[-1]]}")
 
         exons = {"kernel_size": kernel_size, "stride": stride}
         super().__init__(exons)
@@ -175,7 +177,7 @@ class MaxPool2dGene(GeneBase):
         if random.random() > 0.5:
             return lambda x: x + 1
         else:
-            return lambda x: x -1
+            return lambda x: x - 1
 
     def mutate(self, fnc):
         super().mutate(fnc)
