@@ -7,7 +7,7 @@ tsmoothie
 pandas
 scipy
 scikit-image
-pywt
+PyWavelets
 mypy
 matplotlib
 wfdb
