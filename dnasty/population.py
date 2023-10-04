@@ -6,14 +6,29 @@ from my_utils.my_utils import get_num_correct
 from tqdm import tqdm
 from dnasty.my_utils.ksplit import load_2d_dataset
 import copy
-device = "cpu"
+from dnasty.my_utils.config import Config
+import json
+import os
+
+local = os.getcwd()
+config_path = os.path.join(local, "dnasty/my_utils/nas_config.json")
+
+
+def load_json(json_file: str) -> dict:
+    with open(json_file) as fp:
+        return json.load(fp)
+
+    
+config = Config(load_json("nas_config.json"))
+
 
 DEFAULT_CONV_KER = 10
 DEFAULT_MAXPOOL_KER = 3
 DEFAULT_ACTIVATION = "ReLU"
 DEFAULT_CONV_SEARCH_ORDER = ["kernel_size", "out_channels", "activation"]
 
-#TODO:
+
+# TODO:
 # - write Population class the search ONLY for the conv block to start with
 # - then modify to search for everything iteratively
 
@@ -28,12 +43,11 @@ DEFAULT_CONV_SEARCH_ORDER = ["kernel_size", "out_channels", "activation"]
 #   - repeat for N generations
 
 
-
 class Population:
     def __init__(self, config):
         self.best_conv_genes = {}
         self.target_gene = ConvBlock2dGene
-        self.target_exon = DEFAULT_CONV_SEARCH_ORDER[0]  # kernel_size
+        self.target_exon = config.default_search_order[0]  # kernel_size exon
         self.population = []
         self.generation = 0
         self.config = config
@@ -41,7 +55,7 @@ class Population:
     def search(self):
         """method that searches for the best specified exon in a certain gene"""
         target_exon = "kernel_size"
-        saveID = f"targets<gene<{self.target_gene}>_exon<{target_exon}>>"
+        save_id = f"targets<gene<{self.target_gene}>_exon<{target_exon}>>"
         allowed_ker_sizes = ConvBlock2dGene.allowed_kernel_size
         default_exons = {"in_channels": 1, "out_channels": 16, "activation": "ReLU"}
 
@@ -58,10 +72,7 @@ class Population:
 
             for i in range(len(genes)):
                 if i > 0:
-                    genes[i].in_channels = genes[i-1].out_channels
-
-
-
+                    genes[i].in_channels = genes[i - 1].out_channels
 
             genes.extend([mp_gene, flatten_gene])
             genome = Genome(genes)
@@ -73,45 +84,16 @@ class Population:
 
         self.step()
 
-
-    # def initialize(self):
-    #     channels_min = ConvBlock2dGene.allowed_channels[0]
-    #     channels_max = ConvBlock2dGene.allowed_channels[-1]
-    #     grainularity = (channels_max - channels_min) // self.config.algo.population_size
-    #     in_channels = 1
-    #
-    #     for i in range(self.config.algo.population_size):
-    #         out_channels = channels_min + i * grainularity
-    #         if out_channels > channels_max:
-    #             print("channels overflow!")
-    #             out_channels = random.choice(ConvBlock2dGene.allowed_channels)
-    #
-    #         kernel_size = 10
-    #         default_linear_gene = LinearGene(9_000, 9, False)
-    #         default_maxpool_gene_1 = MaxPool2dGene(3, 3)
-    #         default_maxpool_gene_2 = MaxPool2dGene(3, 3)
-    #         default_flatten_gene = FlattenGene()
-    #         activation = "ReLU"
-    #
-    #         conv_gene = ConvBlock2dGene(in_channels, out_channels, kernel_size, activation, bn=True)
-    #         conv_gene_2 = ConvBlock2dGene(out_channels, out_channels, kernel_size, activation, bn=True)
-    #
-    #         genome = Genome([conv_gene, default_maxpool_gene_1, conv_gene_2, default_maxpool_gene_2, default_flatten_gene])
-    #         in_neurons = out_channels * genome.outdims ** 2
-    #         lb1 = LinearGene(in_neurons, 9_000, True)
-    #         genome.genes.extend([lb1, default_linear_gene])
-    #         self.population.append(genome)
-
     def evolve(self):
-        for generation in range(self.config.algo.generations):
+        for generation in range(self.config.generations):
             self.step()
 
     def step(self):
         for genome in self.population:
             model = self.build_model(genome)
-            print(sum(torch.numel(p) for p in model.parameters() if p.requires_grad))
+            print(f"Num trainable params: {sum(torch.numel(p) for p in model.parameters() if p.requires_grad)}\n")
 
-            fitness = self.evaluate_model(model, self.config.algo.epochs)
+            fitness = self.evaluate_model(model, self.config.epochs)
             print(fitness)
             genome.fitness = fitness
         self.population = sorted(self.population, key=lambda g: g.fitness, reverse=False)
@@ -161,8 +143,8 @@ def train(model, optimizer, criterion, trainloader):
     correct = 0
     trainloader.dataset.dataset.test = False
     for imgs, tgts in tqdm(trainloader):
-        imgs = imgs.to(device, non_blocking=True, dtype=torch.float32)
-        tgts = tgts.to(device, non_blocking=True)
+        imgs = imgs.to(config.device, non_blocking=True, dtype=torch.float32)
+        tgts = tgts.to(config.device, non_blocking=True)
         optimizer.zero_grad()
         preds = model(imgs)
         loss = criterion(preds, tgts)
@@ -176,6 +158,7 @@ def train(model, optimizer, criterion, trainloader):
     #
     # return train_loss, train_acc
 
+
 @torch.inference_mode()
 def validate(model, valloader, criterion) -> tuple[float, float]:
     print("validating")
@@ -184,8 +167,8 @@ def validate(model, valloader, criterion) -> tuple[float, float]:
     correct = 0
     valloader.dataset.dataset.test = False
     for imgs, tgts in tqdm(valloader):
-        imgs = imgs.to(device, non_blocking=True, dtype=torch.float32)
-        tgts = tgts.to(device, non_blocking=True)
+        imgs = imgs.to(config.device, non_blocking=True, dtype=torch.float32)
+        tgts = tgts.to(config.device, non_blocking=True)
         preds = model(imgs)
         correct += get_num_correct(preds, tgts)
         loss = criterion(preds, tgts)
