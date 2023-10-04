@@ -1,23 +1,21 @@
 from collections import abc
-from typing import Union, Any, List
+from typing import Any
 
 
 class Config:
     """ object providing read-only access to configurations """
 
-    def __new__(cls, arg: Union[abc.MutableSequence, Any]) -> Union['Config', List['Config'], Any]:
-        if isinstance(arg, abc.Mapping):
-            return super().__new__(cls)
-        elif isinstance(arg, abc.MutableSequence):
-            return [cls(item) for item in arg]
-        else:
-            return arg
+    def _convert(self, d: dict) -> dict:
+        for key, value in d.items():
+            if isinstance(value, dict):
+                d[key] = self._convert(value)
+            elif isinstance(value, str):
+                d[key] = self._convert_type(value)
+        return d
 
     @staticmethod
     def _convert_type(value: str):
-        """
-        First try to convert to int; if fails, try to convert to float; if fails, try NoneType; else leave as str
-        """
+        """ Try to convert to int; if fails, try to convert to float; if fails, try NoneType; else leave as str """
         try:
             value = int(value)
         except ValueError:
@@ -30,13 +28,13 @@ class Config:
                     pass
         return value
 
-    def _convert(self, d: dict) -> dict:
-        for key, value in d.items():
-            if isinstance(value, dict):
-                d[key] = self._convert(value)
-            elif isinstance(value, str):
-                d[key] = self._convert_type(value)
-        return d
+    def __new__(cls, arg: abc.MutableSequence | Any) -> 'Config' | list['Config'] | Any:
+        if isinstance(arg, abc.Mapping):
+            return super().__new__(cls)
+        elif isinstance(arg, abc.MutableSequence):
+            return [cls(item) for item in arg]
+        else:
+            return arg
 
     def __init__(self, mapping) -> None:
         self.__data = self._convert(dict(mapping))
