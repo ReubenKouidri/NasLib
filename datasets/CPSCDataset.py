@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from scipy.io import loadmat
 import torch
 from torch import Tensor
@@ -11,7 +13,8 @@ import dnasty.my_utils.wavelets as wavelets_module
 
 
 class CPSCDataset(Dataset):
-    AR_classes = {"SR": 0, "AF": 1, "I-AVB": 2, "LBBB": 3, "RBBB": 4, "PAC": 5, "PVC": 6, "STD": 7, "STE": 8}
+    AR_classes = {"SR": 0, "AF": 1, "I-AVB": 2, "LBBB": 3, "RBBB": 4, "PAC": 5,
+                  "PVC": 6, "STD": 7, "STE": 8}
     length = 4 * 500  # 4s at sampling frequency of 500Hz
 
     def __init__(
@@ -23,7 +26,7 @@ class CPSCDataset(Dataset):
             trim: bool | None = True,
             lead: int | None = 3,
             test: bool | None = False,
-            load_in_memory: bool | None = True  # if True, dataset is saved in memory for faster access
+            load_in_memory: bool | None = True
     ):
         super(CPSCDataset, self).__init__()
         self.test = test
@@ -31,7 +34,7 @@ class CPSCDataset(Dataset):
         self.normalize = normalize
         self.trim = trim
         self.smoothen = smoothen
-        self.lead = lead - 1  # leads in [1,12] hence -1 indexes array correctly
+        self.lead = lead - 1  # index correctly (leads in [1,12])
 
         self.targets = []
         with open(reference_path, 'r', ) as ref:
@@ -53,7 +56,9 @@ class CPSCDataset(Dataset):
                     filepath = os.path.join(self.data_dir, filename)
                     data = loadmat(filepath)
                     ecg_data = data['ECG']['data'][0][0][self.lead]
-                    self.data.append(torch.as_tensor(self._process_data(ecg_data), dtype=torch.float))
+                    self.data.append(
+                        torch.as_tensor(self._process_data(ecg_data),
+                                        dtype=torch.float))
 
     def _process_data(self, data: np.ndarray) -> np.ndarray:
         data = self._trim_data(data, self.length, step=2) if self.trim else data
@@ -75,15 +80,19 @@ class CPSCDataset(Dataset):
         smoother.smooth(data)
         return smoother.smooth_data[0]
 
-    def __getitem__(self, item: int) -> tuple[Tensor, Any, Any] | tuple[Tensor, Any]:
+    def __getitem__(self, item: int) -> tuple[Tensor, Any, Any] | tuple[
+        Tensor, Any]:
         if self.load_in_memory:
-            return self.data[item], self.targets[item] if self.test else self.targets[item][0]
+            return self.data[item], self.targets[item] if self.test else \
+            self.targets[item][0]
         else:
             file_path = os.path.join(self.data_dir, self.filenames[item])
             data = loadmat(file_path)
             ecg_data = data['ECG']['data'][0][0][self.lead]
-            ecg_data = torch.as_tensor(self._process_data(ecg_data), dtype=torch.float)
-            return ecg_data, self.targets[item] if self.test else self.targets[item][0]
+            ecg_data = torch.as_tensor(self._process_data(ecg_data),
+                                       dtype=torch.float)
+            return ecg_data, self.targets[item] if self.test else \
+            self.targets[item][0]
 
     def __len__(self):
         return len(self.filenames)
@@ -108,13 +117,15 @@ class CPSCDataset2D(CPSCDataset):
                                             lead=lead,
                                             test=test,
                                             **kwargs)
-        self.wavelet = wavelet if self.wavelets.__contains__(wavelet) else "mexh"
+        self.wavelet = wavelet if self.wavelets.__contains__(
+            wavelet) else "mexh"
         self.wavelet_fnc = getattr(wavelets_module, self.wavelet)
 
         if self.load_in_memory:
             self.images = []
             for ecg in self.data:
-                ecg = self.wavelet_fnc(np.array(ecg), self.wavelets[self.wavelet])
+                ecg = self.wavelet_fnc(np.array(ecg),
+                                       self.wavelets[self.wavelet])
                 ecg = torch.as_tensor(ecg, dtype=torch.float).unsqueeze(dim=0)
                 self.images.append(ecg)
 
@@ -122,9 +133,11 @@ class CPSCDataset2D(CPSCDataset):
 
     def __getitem__(self, item: int) -> tuple[Any, Any, Any] | tuple[Any, Any]:
         if self.load_in_memory:
-            return self.images[item], self.targets[item] if self.test else self.targets[item][0]
+            return self.images[item], self.targets[item] if self.test else \
+            self.targets[item][0]
         else:
             ecg, ref = super().__getitem__(item)
-            ecg_img = self.wavelet_fnc(np.array(ecg), self.wavelets[self.wavelet])
+            ecg_img = self.wavelet_fnc(np.array(ecg),
+                                       self.wavelets[self.wavelet])
             ecg_img = torch.as_tensor(ecg_img).unsqueeze(dim=0)
             return ecg_img, ref
