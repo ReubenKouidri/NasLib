@@ -1,4 +1,5 @@
 torch
+torchvision
 typing
 wheel
 twine
@@ -10,4 +11,4 @@ scikit-image
 PyWavelets
 mypy
 matplotlib
-wfdb
+tqdm

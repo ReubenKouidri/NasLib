@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 from torch.optim import SGD
 from torch.utils.data import DataLoader
@@ -25,7 +27,7 @@ class Trainer:
         self.data = self._load_data(self.config.data.data_path, self.config.data.reference_path, split_ratio)
         self.split_ratio = split_ratio
         self.algo_mode = algo_mode
-        #self.writer = SummaryWriter(log_dir='logs')
+        self.writer = SummaryWriter(log_dir='logs')
 
     def _train(self, model, trainloader, optimizer, criterion) -> tuple[float, float]:
         model.train()
@@ -50,7 +52,7 @@ class Trainer:
 
     @torch.inference_mode()
     def _eval(self, model, valloader, criterion) -> tuple[float, float]:
-        model.validate(,
+        model.validate()
         total_loss = 0.0
         correct = 0
         valloader.dataset.dataset.test = False
@@ -68,7 +70,7 @@ class Trainer:
 
     @torch.inference_mode()
     def test(self, model, testloader, answer_path):
-        model.validate(,
+        model.validate()
         testloader.dataset.dataset.test = True
         score_matrix = torch.zeros((9, 9), dtype=torch.float32, device=self.device)
         for imgs, tgts in testloader:
@@ -176,104 +178,3 @@ class Trainer:
             else:
                 if test_loader:
                     self.test(model, test_loader, f"answers_{rep}.csv")
-
-
-# class Trainer(abc.ABC):
-#     @abc.abstractmethod
-#     def __init__(self, config, model, optimizer, criterion, checkpoint_dir: str | None = "checkpoint",
-#                  device: str = "cpu"):
-#         self.config = config
-#         self.data = self._load_data(self.config.data.data_path, self.config.data.reference_path, (1, (0.8, 0.2)))
-#         self.model = model
-#         self.optimizer = optimizer
-#         self.criterion = criterion
-#         self.checkpoint_dir = checkpoint_dir
-#         self.train_losses = []
-#         self.eval_losses = []
-#         self.loaders = self.get_dataloaders()
-#         self.device = device
-#
-#     @staticmethod
-#     def _load_data(dp, rp, ksplit: tuple[int, tuple] | None):
-#         dataset = load_2d_dataset(dp, rp)
-#         if ksplit:
-#             datasets = split_dataset(dataset, ksplit)
-#             return datasets
-#         return dataset
-#
-#     @abc.abstractmethod
-#     def get_dataloaders(self):
-#         train_loader = DataLoader(dataset=self.data[0], batch_size=self.config.train.batch_size, shuffle=True)
-#         eval_loader = DataLoader(dataset=self.data[1], batch_size=self.config.train.batch_size, shuffle=False)
-#         return train_loader, eval_loader
-#
-#     @abc.abstractmethod
-#     def train(self):
-#         self.model.train()
-#         total_loss = 0.0
-#         correct = 0
-#         self.trainloader.dataset.dataset.test = False
-#         for imgs, tgts in tqdm(self.trainloader):
-#             imgs = imgs.to(self.device, non_blocking=True, dtype=torch.float32)
-#             tgts = tgts.to(self.device, non_blocking=True)
-#             self.optimizer.zero_grad()
-#             preds = self.model(imgs)
-#             loss = self.criterion(preds, tgts)
-#             loss.backward()
-#             correct += get_num_correct(preds, tgts)
-#             total_loss += loss.item()
-#             self.optimizer.step()
-#
-#         train_loss = total_loss / (len(self.trainloader.dataset) / self.trainloader.batch_size)
-#         train_acc = correct / (len(self.trainloader.dataset))
-#
-#         return train_loss, train_acc
-#
-#     @abc.abstractmethod
-#     @torch.inference_mode
-#     def eval(self):
-#         self.model.eval()
-#         total_loss = 0.0
-#         correct = 0
-#         self.valloader.dataset.dataset.test = False
-#         for imgs, tgts in tqdm(self.valloader):
-#             imgs = imgs.to(self.device, non_blocking=True, dtype=torch.float32)
-#             tgts = tgts.to(self.device, non_blocking=True)
-#             preds = self.model(imgs)
-#             correct += get_num_correct(preds, tgts)
-#             loss = self.criterion(preds, tgts)
-#             total_loss += loss.item()
-#
-#         val_acc = correct / len(self.valloader.dataset)
-#         val_loss = total_loss / (len(self.valloader.dataset) / self.valloader.batch_size)
-#         return val_loss, val_acc
-#
-#     @abc.abstractmethod
-#     def __call__(self, num_epochs):
-#         for e in range(num_epochs):
-#             train_loss, _ = self.train()
-#             self.train_losses.append(train_loss)
-#             eval_loss, _ = self.eval()
-#             self.eval_losses.append(eval_loss)
-#         print(self.eval_losses)
-#
-#
-# class PopulationTrainer(Trainer):
-#     def __init__(self, config, model,
-#                  criterion=nn.CrossEntropyLoss(),
-#                  checkpoint_dir: str | None = "checkpoint",
-#                  device: str = "cpu"):
-#         self.optimizer = SGD(model.parameters(), config.train.lr, nesterov=True, momentum=0.9)
-#         super().__init__(config, model, self.optimizer, criterion, checkpoint_dir, device)
-#
-#     def get_dataloaders(self):
-#         super().get_dataloaders()
-#
-#     def train(self):
-#         super().train()
-#
-#     def eval(self):
-#         super().eval()
-#
-#     def __call__(self, epochs):
-#         super().__call__(epochs)

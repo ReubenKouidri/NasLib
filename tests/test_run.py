@@ -1,6 +1,6 @@
 from dnasty.my_utils.config import Config
 from dnasty.trainer import Trainer
-from models.defaults import S_2RB2D2
+from dnasty.defaults.model import S_2RB2D2
 import os
 import json
 

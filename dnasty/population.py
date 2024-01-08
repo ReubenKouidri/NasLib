@@ -29,8 +29,8 @@ DEFAULT_CONV_SEARCH_ORDER = ["kernel_size", "out_channels", "activation"]
 
 
 # TODO:
-# - write Population class the search ONLY for the conv block to start with
-# - then modify to search for everything iteratively
+#   - write Population class then search ONLY for the best conv block
+#   - then modify to iteratively search CBAM components
 
 
 # TODO:
@@ -44,7 +44,7 @@ DEFAULT_CONV_SEARCH_ORDER = ["kernel_size", "out_channels", "activation"]
 
 
 class Population:
-    def __init__(self, config):
+    def __init__(self, config: Config):
         self.best_conv_genes = {}
         self.target_gene = ConvBlock2dGene
         self.target_exon = config.default_search_order[0]  # kernel_size exon

@@ -2,9 +2,10 @@ import pywt
 from skimage.transform import resize
 import numpy as np
 
-
 __all__ = ["mexh", "cmor"]
 
+
+# TODO: use OOP
 
 def mexh(signal: np.ndarray, max_width: int) -> np.ndarray:
     """
