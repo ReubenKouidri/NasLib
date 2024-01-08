@@ -1,37 +1,27 @@
-# NasLib
-Neural architecture search lib in the making.  
-Refactoring code from MPhys project.  
-The code was originally written to build a CNN with integrated CBAM modules to classify cardiac arrhythmias (9-classes). 
+# NasLib Project
 
-<b>Search space</b>  
-ResBlock-based with CBAM add-ons. This specific block structure is already proven. Hence, given the time constraints and computational limitations
-this was my starting point.
+### Overview
+NasLib is a refactored version of an MPhys project aimed at building
+Convolutional Neural Networks (CNNs) with integrated Convolutional Block Attention Modules (CBAM)
+for classifying cardiac arrhythmias across 9 classes. 
 
-<b>Search Strategy</b>  
-Evolutionary. Currently 4 different sexual crossover operators, 1 mutation operartor which needs to be investigated further, 
-1 asexual reproduction operator (for finer tuning). 
+### Search Space
+- <b>Cell-Based</b>: ResBlock with CBAM, a proven structure for this application.
+- <b>Improvements to Consider</b>:
+  - Minimize complexity, drawing inspiration from NEAT (NeuroEvolution of Augmenting Topologies).
+  - Integrate Vision Transformers (ViTs).
 
-<b>Evaluation Strategy</b>  
-Currently training model until plateau. This is expensive and, although works, requires a different approach.
-Methods to try:
-  - Bayesian optimisation
-  - weight sharing
-  - early stopping triggered by gradient acceleration (de). Statistical variance perhaps a problem here...
-  - single layer optimisation (much faster)
-
-<b>Moving forward...</b>
-* General:
-  - optimise current methods
-  - equivalent 1D methods for corresponding datasets (e.g. no wavelet transform) and to increase speed
-  - optimise crossover operators
+### Search Strategy
+- <b>Current Strategies</b>: evolutionary approach with 4 sexual crossover operators, 1 mutation operator, and 
+    1 asexual reproduction operator (to search the local parameter space).
+- <b>Future Modifications</b>: 
+  - Speciation.
+  - Random search as a baseline.
   
-* Search Space:
-  - Minimise c.f. NEAT
-  - add ViT and Transformer arch
-  
-* Search Strategy:
-  - add speciation
-  - Bayesian Opt.
-  - Reinforcement Learning
-  - CMA-ES
-   
+### Evaluation Strategy
+- <b>Current Method</b>: early stopping after approximately 20 epochs, though this proves expensive and unreliable.
+- <b>Proposed Methods</b>:
+  - Implement early stopping triggered by gradient acceleration.
+  - Single layer optimization for increased speed.
+  - Sequential search (search for the best individual components independent of the rest).
+  - Integration of speedy performance predictors to expedite the evaluation process.
