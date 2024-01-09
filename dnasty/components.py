@@ -1,14 +1,33 @@
+from __future__ import annotations
 from typing import Tuple, Union
+
+import inspect
 import torch
 from torch import Tensor
 from torch import nn
+from dnasty.genes import genes
+
+_allowed_activations = nn.modules.activation.__all__
 
 
-__allowed_activations__ = nn.modules.activation.__all__
+def _build_layer(gene: genes.GeneBase) -> nn.Module:
+    name = gene.__class__.__name__.replace("Gene", "")
+    if hasattr(globals(), name):
+        module = globals()
+    elif hasattr(nn, name):
+        module = nn
+    else:
+        raise AttributeError(
+            f"No class {name} found in either torch.nn or the current module")
+
+    sig = inspect.signature(getattr(module, name))
+    params = [p for p in gene.exons.keys() if p in sig.parameters]
+    kwargs = {p: gene.exons[p] for p in params}
+    return getattr(module, name)(**kwargs)
 
 
 def make_activation(name: str) -> nn.Module:
-    if name in __allowed_activations__:
+    if name in _allowed_activations:
         return getattr(nn, name)()
     else:
         raise TypeError("Activation not valid!")
@@ -20,14 +39,15 @@ class MaxPool2D(nn.Module):
             stride: Union[int, tuple] | None,
             kernel_size: int | tuple = None,
             padding: Union[int, tuple, str] | None = 0,
-            dilation:  Union[int, tuple] | None = 1
+            dilation: Union[int, tuple] | None = 1
     ) -> None:
         super(MaxPool2D, self).__init__()
         self.kernel_size = kernel_size
         self.stride = stride if stride else kernel_size
         self.padding = padding
         self.dilation = dilation
-        self.pool = nn.MaxPool2d(kernel_size=self.kernel_size, stride=self.stride,
+        self.pool = nn.MaxPool2d(kernel_size=self.kernel_size,
+                                 stride=self.stride,
                                  padding=self.padding, dilation=self.dilation)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -54,13 +74,14 @@ class Flatten(nn.Module):
 class ChannelPool(nn.Module):
     """
     A PyTorch module that performs channel pooling on an input tensor.
-    The input tensor should have shape `(N, C, H, W)`, where `N` is the batch size,
+    The input tensor should have shape `(N, C, H, W)`, where `N` is the batch
+    size,
     `C` is the number of channels, `H` is the height, and `W` is the width.
 
-    Channel pooling computes the maximum and average values over the channel dimension
-    separately, and concatenates the results along the channel dimension to produce
-    an output tensor of shape `(N, 2, H, W)`, i.e. a description of both max and mean
-    features along channel dim.
+    Channel pooling computes the maximum and average values over the channel
+    dimension separately, then concatenates the results along the channel
+    dimension to produce an output tensor of shape `(N, 2, H, W)`,
+    i.e. a description of both max and mean features along channel dim.
 
     Args: None
 
@@ -79,18 +100,23 @@ class ChannelPool(nn.Module):
 
     @staticmethod
     def forward(x: Tensor) -> Tensor:
-        # torch.max returns type torch.return_types.max: first tensor contains the max values
-        # whereas the second tensor is an index tensor showing which input channel the max value occurred in
-        return torch.cat((torch.max(x, dim=1)[0].unsqueeze(dim=1), torch.mean(x, dim=1).unsqueeze(dim=1)), dim=1)
+        # torch.max returns type torch.return_types.max: first tensor
+        # contains the max values
+        # whereas the second tensor is an index tensor showing which input
+        # channel the max value occurred in
+        return torch.cat((torch.max(x, dim=1)[0].unsqueeze(dim=1),
+                          torch.mean(x, dim=1).unsqueeze(dim=1)), dim=1)
 
 
 class SpatialAttention(nn.Module):
-    def __init__(self, kernel_size: Union[int, tuple]) -> None:
+    def __init__(self, kernel_size: int | tuple) -> None:
         super(SpatialAttention, self).__init__()
         self.kernel_size = kernel_size
         self.compress = ChannelPool()
-        self.conv = ConvBlock2d(in_channels=2, out_channels=1, kernel_size=self.kernel_size,
-                                stride=1, padding='same', bn=False, activation="Sigmoid")
+        self.conv = ConvBlock2d(in_channels=2, out_channels=1,
+                                kernel_size=self.kernel_size,
+                                stride=1, padding='same', bn=False,
+                                activation="Sigmoid")
 
     def forward(self, x: Tensor) -> Tensor:
         sa = self.compress(x)
@@ -119,14 +145,18 @@ class ConvBlock2d(nn.Sequential):
         self.padding = padding
         self.groups = groups
         self.bias = bias
-        self.conv = nn.Conv2d(in_channels=self.in_channels, out_channels=self.out_channels,
+        self.conv = nn.Conv2d(in_channels=self.in_channels,
+                              out_channels=self.out_channels,
                               kernel_size=self.kernel_size, stride=self.stride,
-                              padding=self.padding, groups=self.groups, bias=self.bias)
+                              padding=self.padding, groups=self.groups,
+                              bias=self.bias)
         self.add_module("conv", self.conv)
         if activation:
             self.add_module(f"{activation}", make_activation(activation))
         if bn:
-            self.add_module("batch_norm", nn.BatchNorm2d(self.out_channels, momentum=0.1, affine=True))
+            self.add_module("batch_norm",
+                            nn.BatchNorm2d(self.out_channels, momentum=0.1,
+                                           affine=True))
 
 
 class ChannelAttention(nn.Module):
@@ -164,8 +194,11 @@ class CBAM(nn.Module):
         self.se_ratio = se_ratio
         self.kernel_size = kernel_size
         self.spatial = spatial
-        self.channel_gate = ChannelAttention(in_channels=self.in_channels, se_ratio=self.se_ratio) if channel else None
-        self.spatial_gate = SpatialAttention(self.kernel_size) if spatial else None
+        self.channel_gate = ChannelAttention(in_channels=self.in_channels,
+                                             se_ratio=self.se_ratio) if (
+            channel) else None
+        self.spatial_gate = SpatialAttention(
+            self.kernel_size) if spatial else None
 
     def forward(self, x: Tensor) -> Tensor:
         cb = self.channel_gate(x) if self.channel_gate else x
@@ -173,15 +206,15 @@ class CBAM(nn.Module):
         return cb + x
 
 
-class LinearBlockGene(nn.Sequential):
+class LinearBlock(nn.Sequential):
     def __init__(
             self,
             in_features: int,
             out_features: int,
             activation: str | None,
-            dropout: bool | None = True
+            dropout: bool = True
     ) -> None:
-        super(LinearBlockGene, self).__init__()
+        super(LinearBlock, self).__init__()
         self.linear = nn.Linear(in_features, out_features)
         if activation:
             self.add_module(f"{activation}", make_activation(activation))

@@ -1,28 +1,28 @@
-from dnasty.genetics import LinearGene
+from dnasty.genes.genetics import LinearBlockGene
 import unittest
 
 
 class TestLinearGene(unittest.TestCase):
     def setUp(self):
         self.exons = {"in_features": 10, "out_features": 110, "dropout": True}
-        self.gene = LinearGene(in_features=10, out_features=110, dropout=True)
+        self.gene = LinearBlockGene(in_features=10, out_features=110, dropout=True)
 
     def test_init(self):
         self.assertEqual(self.gene.exons, self.exons)
 
         false_in_features = {"in_features": 1, "out_features": 100, "dropout": True}
-        self.assertRaises(ValueError, LinearGene, **false_in_features)
+        self.assertRaises(ValueError, LinearBlockGene, **false_in_features)
 
         false_out_features = {"in_features": 9, "out_features": 100_000, "dropout": True}
-        self.assertRaises(ValueError, LinearGene, **false_out_features)
+        self.assertRaises(ValueError, LinearBlockGene, **false_out_features)
 
         false_dropout = {"in_features": 9, "out_features": 100, "dropout": "hi"}
-        self.assertRaises(ValueError, LinearGene, **false_dropout)
+        self.assertRaises(ValueError, LinearBlockGene, **false_dropout)
 
     def test_mutate(self):
         self.gene.mutate()
-        self.assertIn(self.gene.exons["out_features"], LinearGene.allowed_features)
-        self.assertTrue(self.gene.exons["in_features"] >= LinearGene.allowed_features[0])
+        self.assertIn(self.gene.exons["out_features"], LinearBlockGene.allowed_features)
+        self.assertTrue(self.gene.exons["in_features"] >= LinearBlockGene.allowed_features[0])
 
     def test_len(self):
         self.assertEqual(len(self.gene), 3)

@@ -1,4 +1,4 @@
-from .genetics import Genome, FlattenGene, ConvBlock2dGene, LinearGene, MaxPool2dGene, build_layer
+from dnasty.genes.genetics import Genome, FlattenGene, ConvBlock2dGene, LinearBlockGene, MaxPool2dGene, _build_layer
 import torch
 from torch.utils.data import DataLoader, random_split
 import torch.nn as nn
@@ -77,8 +77,8 @@ class Population:
             genes.extend([mp_gene, flatten_gene])
             genome = Genome(genes)
             in_neurons = int(default_exons.out_channels * genome.outdims ** 2)
-            lb1 = LinearGene(in_neurons, 9_000, True)
-            output_gene = LinearGene(9_000, 9, False)
+            lb1 = LinearBlockGene(in_neurons, 9_000, True)
+            output_gene = LinearBlockGene(9_000, 9, False)
             genome.genes.extend([lb1, output_gene])
             self.population.append(genome)
 
@@ -128,7 +128,7 @@ class Population:
     def build_model(genome: Genome) -> torch.nn.Sequential:
         model = torch.nn.Sequential()
         for gene in genome.genes:
-            model.append(build_layer(gene))
+            model.append(_build_layer(gene))
 
         return model
 

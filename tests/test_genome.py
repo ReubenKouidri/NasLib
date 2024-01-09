@@ -1,4 +1,4 @@
-from dnasty.genetics import Genome, ConvBlock2dGene, MaxPool2dGene
+from dnasty.genes.genetics import Genome, ConvBlock2dGene, MaxPool2dGene
 import coverage
 import unittest
 import copy

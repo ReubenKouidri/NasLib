@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import abc
 from typing import Any
 
@@ -15,7 +17,8 @@ class Config:
 
     @staticmethod
     def _convert_type(value: str):
-        """ Try to convert to int; if fails, try to convert to float; if fails, try NoneType; else leave as str """
+        """ Try to convert to int; if fails, try to convert to float; if
+        fails, try NoneType; else leave as str """
         try:
             value = int(value)
         except ValueError:

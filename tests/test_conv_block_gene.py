@@ -1,4 +1,4 @@
-from dnasty.genetics import ConvBlock2dGene
+from dnasty.genes.genetics import ConvBlock2dGene
 import unittest
 
 

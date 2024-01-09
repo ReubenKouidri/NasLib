@@ -1,9 +1,10 @@
 import unittest
 import numpy as np
 import torch
+
+from datasets.CPSCDataset import CPSCDataset2D
 from dnasty.my_utils.wavelets import mexh
-from datasets import CPSCDataset, CPSCDataset2D
-import coverage
+from datasets import CPSCDataset
 
 
 #TODO:
@@ -13,12 +14,13 @@ import coverage
 
 class TestCPSCDataset(unittest.TestCase):
     def setUp(self):
-        self.dataset = CPSCDataset(data_dir="datasets/cpsc_data/test100",
-                                   reference_path="datasets/cpsc_data/reference300.csv",
-                                   normalize=True,
-                                   smoothen=True,
-                                   trim=True,
-                                   lead=3)
+        self.dataset = CPSCDataset(
+            data_dir="datasets/cpsc_data/test100",
+            reference_path="datasets/cpsc_data/reference300.csv",
+            normalize=True,
+            smoothen=True,
+            trim=True,
+            lead=3)
 
     def test_testing_mode(self):
         self.dataset.test = True
@@ -90,9 +92,4 @@ class TestCPSCDataset2D(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    cov = coverage.Coverage()
-    cov.start()
     unittest.main()
-    cov.stop()
-    cov.save()
-    cov.report()
