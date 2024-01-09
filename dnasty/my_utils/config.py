@@ -6,6 +6,28 @@ from typing import Any
 
 class Config:
     """ object providing read-only access to configurations """
+    def __new__(cls, arg: abc.MutableSequence | Any) -> 'Config' | list['Config'] | Any:
+        if isinstance(arg, abc.Mapping):
+            return super().__new__(cls)
+        elif isinstance(arg, abc.MutableSequence):
+            return [cls(item) for item in arg]
+        else:
+            return arg
+
+    def __init__(self, mapping) -> None:
+        self.__data = self._convert(dict(mapping))
+
+    # def __getattr__(self, name):
+    #     if hasattr(self.__data, name):
+    #         return getattr(self.__data, name)
+    #     else:
+    #         return Config(self.__data[name])
+
+    def __getattr__(self, name):
+        if name in self.__data:
+            return Config(self.__data[name])
+        else:
+            raise AttributeError(f"'Config' object has no attribute '{name}'")
 
     def _convert(self, d: dict) -> dict:
         for key, value in d.items():
@@ -30,20 +52,3 @@ class Config:
                 else:
                     pass
         return value
-
-    def __new__(cls, arg: abc.MutableSequence | Any) -> 'Config' | list['Config'] | Any:
-        if isinstance(arg, abc.Mapping):
-            return super().__new__(cls)
-        elif isinstance(arg, abc.MutableSequence):
-            return [cls(item) for item in arg]
-        else:
-            return arg
-
-    def __init__(self, mapping) -> None:
-        self.__data = self._convert(dict(mapping))
-
-    def __getattr__(self, name):
-        if hasattr(self.__data, name):
-            return getattr(self.__data, name)
-        else:
-            return Config(self.__data[name])
