@@ -6,8 +6,8 @@ BASE_PATH = "/datasets/mitbih_database"
 ANNOT_ENDING = "annotations.txt"
 data_files = [file for file in os.listdir(BASE_PATH) if file.endswith(".csv")]
 data_files.sort()
-__names__ = [name for name, _ in (os.path.splitext(file) for file in data_files)]  # [100, 101, ...]
-__annots__ = [name + ANNOT_ENDING for name in __names__]  # [100annotation.txt, ...]
+names = [name for name, _ in (os.path.splitext(file) for file in data_files)]  # [100, 101, ...]
+annots = [name + ANNOT_ENDING for name in names]  # [100annotation.txt, ...]
 
 
 def segment(name):

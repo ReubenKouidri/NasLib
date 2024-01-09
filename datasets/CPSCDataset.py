@@ -84,7 +84,7 @@ class CPSCDataset(Dataset):
         Tensor, Any]:
         if self.load_in_memory:
             return self.data[item], self.targets[item] if self.test else \
-            self.targets[item][0]
+                self.targets[item][0]
         else:
             file_path = os.path.join(self.data_dir, self.filenames[item])
             data = loadmat(file_path)
@@ -92,7 +92,7 @@ class CPSCDataset(Dataset):
             ecg_data = torch.as_tensor(self._process_data(ecg_data),
                                        dtype=torch.float)
             return ecg_data, self.targets[item] if self.test else \
-            self.targets[item][0]
+                self.targets[item][0]
 
     def __len__(self):
         return len(self.filenames)
@@ -134,7 +134,7 @@ class CPSCDataset2D(CPSCDataset):
     def __getitem__(self, item: int) -> tuple[Any, Any, Any] | tuple[Any, Any]:
         if self.load_in_memory:
             return self.images[item], self.targets[item] if self.test else \
-            self.targets[item][0]
+                self.targets[item][0]
         else:
             ecg, ref = super().__getitem__(item)
             ecg_img = self.wavelet_fnc(np.array(ecg),
