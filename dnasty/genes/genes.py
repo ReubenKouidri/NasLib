@@ -3,6 +3,7 @@ import collections.abc as collections
 
 import abc
 from abc import abstractmethod
+import inspect
 import random
 import warnings
 import copy
@@ -42,6 +43,16 @@ class GeneBase(abc.ABC):
         else:
             raise AttributeError(f"No attribute {name} in {cls.__name__}")
 
+    @abstractmethod
+    def express(self):
+        """
+        Express the gene as a torch.nn.Module.
+        Every Gene object must implement this method.
+        """
+        raise NotImplementedError(
+            "Express function must be implemented!"
+        )
+
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:
         """
@@ -79,7 +90,7 @@ class LinearBlockGene(GeneBase):
     def __init__(self,
                  in_features: int,
                  out_features: int,
-                 activation: str | None,
+                 activation: str | None = None,
                  dropout: bool = True) -> None:
         if activation is not None and activation not in _allowed_activations:
             raise ValueError(
@@ -91,14 +102,12 @@ class LinearBlockGene(GeneBase):
                                              LinearBlockGene.allowed_features)
         out_features = self._validate_feature("out_features", out_features,
                                               LinearBlockGene.allowed_features)
-        self.activation = activation
+        exons = {"in_features": in_features,
+                 "out_features": out_features,
+                 "dropout": dropout,
+                 "activation": activation}
 
-        _exons = {"in_features": in_features,
-                  "out_features": out_features,
-                  "dropout": dropout,
-                  "activation": activation}
-
-        super().__init__(_exons)
+        super().__init__(exons)
 
     def mutate(self) -> None:
         self.exons["dropout"] = not self.exons["dropout"]
@@ -107,9 +116,18 @@ class LinearBlockGene(GeneBase):
             self._validate_feature("out_features", self.exons["out_features"],
                                    LinearBlockGene.allowed_features))
 
+    def express(self) -> nn.Sequential:
+        cell = nn.Sequential(nn.Linear(self.in_features, self.out_features))
+        if self.dropout:
+            cell.add_module("dropout", nn.Dropout(p=0.5))
+        if self.activation is not None:
+            cell.add_module(self.activation.__class__.__name__,
+                            getattr(nn, self.activation)())
+        return cell
+
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:
-        return super()._validate_feature(name, value, allowed_range)
+        return GeneBase._validate_feature(name, value, allowed_range)
 
 
 class ConvBlock2dGene(GeneBase):
@@ -236,5 +254,22 @@ class FlattenGene(GeneBase):
         super().__init__(exons)
 
     def mutate(self, *args, **kwargs) -> None: pass
+
     @staticmethod
     def _validate_feature(**kwargs) -> int: pass
+
+
+def _build_layer(gene: GeneBase) -> nn.Module:
+    name = gene.__class__.__name__.replace("Gene", "")
+    if hasattr(globals(), name):
+        module = globals()
+    elif hasattr(nn, name):
+        module = nn
+    else:
+        raise AttributeError(
+            f"No class {name} found in either torch.nn or the current module")
+
+    sig = inspect.signature(getattr(module, name))
+    params = [p for p in gene.exons.keys() if p in sig.parameters]
+    kwargs = {p: gene.exons[p] for p in params}
+    return getattr(module, name)(**kwargs)

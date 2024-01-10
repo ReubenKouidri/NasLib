@@ -1,36 +1,11 @@
 from __future__ import annotations
 from typing import Tuple, Union
 
-import inspect
+
 import torch
 from torch import Tensor
 from torch import nn
 from dnasty.genes import genes
-
-_allowed_activations = nn.modules.activation.__all__
-
-
-def _build_layer(gene: genes.GeneBase) -> nn.Module:
-    name = gene.__class__.__name__.replace("Gene", "")
-    if hasattr(globals(), name):
-        module = globals()
-    elif hasattr(nn, name):
-        module = nn
-    else:
-        raise AttributeError(
-            f"No class {name} found in either torch.nn or the current module")
-
-    sig = inspect.signature(getattr(module, name))
-    params = [p for p in gene.exons.keys() if p in sig.parameters]
-    kwargs = {p: gene.exons[p] for p in params}
-    return getattr(module, name)(**kwargs)
-
-
-def make_activation(name: str) -> nn.Module:
-    if name in _allowed_activations:
-        return getattr(nn, name)()
-    else:
-        raise TypeError("Activation not valid!")
 
 
 class MaxPool2D(nn.Module):
@@ -204,19 +179,3 @@ class CBAM(nn.Module):
         cb = self.channel_gate(x) if self.channel_gate else x
         cb = self.spatial_gate(cb) if self.spatial_gate else cb
         return cb + x
-
-
-class LinearBlock(nn.Sequential):
-    def __init__(
-            self,
-            in_features: int,
-            out_features: int,
-            activation: str | None,
-            dropout: bool = True
-    ) -> None:
-        super(LinearBlock, self).__init__()
-        self.linear = nn.Linear(in_features, out_features)
-        if activation:
-            self.add_module(f"{activation}", make_activation(activation))
-        if dropout:
-            self.add_module("dropout", nn.Dropout(p=0.95))
