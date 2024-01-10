@@ -1,5 +1,6 @@
 from __future__ import annotations
 import collections.abc as collections
+from typing import Union
 
 import abc
 from abc import abstractmethod
@@ -155,30 +156,64 @@ class ConvBlock2dGene(GeneBase):
 
         super().__init__(exons)
 
+    def express(self) -> nn.Sequential:
+        cell = nn.Sequential()
+        cell.add_module("conv",
+                        nn.Conv2d(in_channels=self.in_channels,
+                                  out_channels=self.out_channels,
+                                  kernel_size=self.kernel_size,
+                                  stride=1, padding=0))
+        if self.batch_norm:
+            cell.add_module("batch_norm",
+                            nn.BatchNorm2d(self.out_channels, momentum=0.1,
+                                           affine=True))
+        if self.activation is not None:
+            cell.add_module(self.activation.__class__.__name__,
+                            getattr(nn, self.activation)())
+        return cell
+
     def mutate(self, fnc):
-        super().mutate(fnc)
+        # TODO: Implement
+        pass
 
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:
-        return super()._validate_feature(name, value, allowed_range)
+        return GeneBase._validate_feature(name, value, allowed_range)
 
 
 class MaxPool2dGene(GeneBase):
     allowed_values = set(range(2, 10))
 
-    def __init__(self, kernel_size, stride):
+    def __init__(self,
+                 kernel_size: Union[tuple, list, int],
+                 stride: Union[tuple, list, int, None] = None) -> None:
         kernel_size = self._validate_feature("kernel_size", kernel_size,
                                              self.__class__.allowed_values)
+        if stride is None:
+            stride = kernel_size
 
         exons = {"kernel_size": kernel_size, "stride": stride}
         super().__init__(exons)
 
+    def express(self) -> nn.MaxPool2d:
+        return nn.MaxPool2d(kernel_size=self.kernel_size, stride=self.stride)
+
     def mutate(self, fnc):
-        super().mutate(fnc)
+        # TODO: Implement
+        pass
 
     @staticmethod
-    def _validate_feature(name: str, value: int, allowed_range: set) -> int:
-        return super()._validate_feature(name, value, allowed_range)
+    def _validate_feature(name: str,
+                          value: int | tuple | list,
+                          allowed_range: set) -> int | list:
+        if isinstance(value, tuple) or isinstance(value, list):
+            if len(value) > 2:
+                raise ValueError("MaxPool2dGene only supports 2D pooling")
+            return list(
+                [GeneBase._validate_feature(name, v, allowed_range) for v in
+                 value])
+
+        return GeneBase._validate_feature(name, value, allowed_range)
 
 
 class SpatialAttentionGene(GeneBase):
