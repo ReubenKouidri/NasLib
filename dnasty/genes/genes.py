@@ -1,6 +1,5 @@
 from __future__ import annotations
 import collections.abc as collections
-from typing import Union
 
 import abc
 from abc import abstractmethod
@@ -29,6 +28,7 @@ _allowed_activations = nn.modules.activation.__all__
 
 class GeneBase(abc.ABC):
     """Base class for all Genes to inherit from"""
+    __module_sig_cache = {}
 
     def __init__(self, exons):
         if not isinstance(exons, collections.Mapping):
@@ -41,17 +41,53 @@ class GeneBase(abc.ABC):
     def mutate(self, *args, **kwargs) -> None:
         raise NotImplementedError("Mutate function must be implemented!")
 
-    def __getattr__(self, name):
-        cls = self.__class__
-        if hasattr(cls, name):  # search static attributes
-            return getattr(cls, name)
-        elif name in self.exons:
-            return self.exons[name]
-        else:
-            raise AttributeError(f"No attribute {name} in {cls.__name__}")
-
     def express(self) -> Module:
-        return _build_module(self)
+        """
+        Dynamically creates and returns a PyTorch module based on the
+        gene's configuration.
+
+        The module type is determined by the gene's class name and a
+        matching class is searched for in `dnasty.components` and
+        `torch.nn` modules.
+
+        A class-level cache (`__module_sig_cache`) is used to
+        store and reuse the signatures of module constructors,
+        improving runtime performance by avoiding redundant introspection.
+
+        Raises:
+            AttributeError: If no corresponding class is found in either
+            `dnasty.components` or `torch.nn` for the given gene type.
+
+        Returns:
+            Module: A torch.nn.Module corresponding to the gene's type
+            and configuration.
+
+        Example:
+            # Assuming a subclass of GeneBase 'ConvBlock2dGene' and
+            corresponding 'ConvBlock2d' in dnasty.components
+            gene = ConvBlock2dGene(
+                {'in_channels': value1,
+                 'out_channels': value2,
+                 'kernel_size': value3,
+                 'activation': 'ReLU',}
+             )
+            my_module = my_gene.express()  # Returns an instance of
+            'ConvBlock2d' configured with the specified exons
+        """
+        name = type(self).__name__.replace("Gene", "")
+        module = getattr(components, name, getattr(nn, name, None))
+        if module is None:
+            raise AttributeError(
+                f"No class {name} found in either torch.nn or "
+                f"dnasty.components")
+
+        if name not in GeneBase.__module_sig_cache:
+            GeneBase.__module_sig_cache[name] = inspect.signature(module)
+
+        sig = GeneBase.__module_sig_cache[name]
+        params = {p: self.exons[p] for p in self.exons.keys() if
+                  p in sig.parameters}
+        return module(**params)
 
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:
@@ -71,10 +107,40 @@ class GeneBase(abc.ABC):
             return closest_val
         return value
 
+    def __getattr__(self, name):
+        """
+        The __getattr__ method is invoked by the interpreter when
+        attribute lookup fails.
+
+        Python checks if the instance has an attribute named x; if
+        not, the search goes to the class (self.__class__), and then up the
+        inheritance graph. If that fails, it looks for the attribute in the
+        `exons` dictionary, and returns it accordingly.
+
+        Parameters:
+            name (str): The name of the attribute being accessed.
+
+        Returns:
+            The value of the attribute if it exists either as a class
+            attribute or as a key in the `exons` dictionary.
+
+        Raises:
+            AttributeError: If the attribute is not found.
+        """
+        cls = type(self)
+        print(cls)
+        if hasattr(cls, name):
+            return getattr(cls, name)
+        elif name in self.exons:
+            return self.exons[name]
+        else:
+            raise AttributeError(
+                f"No attribute {name} in {cls.__name__}")
+
     def __deepcopy__(self, memo=None):
         if memo is None:
             memo = {}
-        cls = self.__class__
+        cls = type(self)
         exons_copy = copy.deepcopy(self.exons, memo)
         new_obj = cls(**exons_copy)
         memo[id(self)] = new_obj
@@ -255,19 +321,3 @@ class CBAMGene(GeneBase):
     def mutate(self, *args, **kwargs) -> None:
         self.channel_gene.mutate(*args, **kwargs)
         self.spatial_gene.mutate(*args, **kwargs)
-
-
-def _build_module(gene: GeneBase) -> nn.Module:
-    name = type(gene).__name__.replace("Gene", "")
-    if hasattr(components, name):
-        module = components
-    elif hasattr(nn, name):
-        module = nn
-    else:
-        raise AttributeError(
-            f"No class {name} found in either torch.nn or dnasty.components")
-
-    sig = inspect.signature(getattr(module, name))
-    params = [p for p in gene.exons.keys() if p in sig.parameters]
-    kwargs = {p: gene.exons[p] for p in params}
-    return getattr(module, name)(**kwargs)
