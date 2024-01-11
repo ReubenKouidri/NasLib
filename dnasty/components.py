@@ -140,25 +140,29 @@ class SpatialAttention(nn.Module):
 class ChannelAttention(nn.Module):
     def __init__(self, in_channels: int, se_ratio: int) -> None:
         super().__init__()
-        self.gmp = nn.AdaptiveMaxPool2d(output_size=1)
-        self.gap = nn.AdaptiveAvgPool2d(output_size=1)
-        self.fc = nn.Sequential(
-            nn.Linear(in_channels, in_channels // se_ratio),
+        self.mlp = nn.Sequential(
+            Flatten(),
+            nn.Linear(in_channels, max(in_channels // se_ratio, 1)),
             nn.ReLU(),
-            nn.Linear(in_channels // se_ratio, in_channels),
-            nn.ReLU()
+            nn.Linear(max(in_channels // se_ratio, 1), in_channels),
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        gmp = self.gmp(x).squeeze(dim=-1).squeeze(dim=-1)
-        gap = self.gap(x).squeeze(dim=-1).squeeze(dim=-1)
-        mp = self.fc(gmp)
-        ap = self.fc(gap)
-        s = nn.Sigmoid()(torch.add(mp, ap))
-        return x * s.unsqueeze(dim=-1).unsqueeze(dim=-1)  # .expand_as(x)
+        assert x.dim() == 4
+        kernel_size = x.size()[2:]
+        gmp = F.max_pool2d(x, kernel_size=kernel_size, stride=kernel_size)
+        gap = F.avg_pool2d(x, kernel_size=kernel_size, stride=kernel_size)
+        gmp = self.mlp(gmp)
+        gap = self.mlp(gap)
+        combined = torch.add(gap, gmp)
+        combined = F.sigmoid(combined).unsqueeze(-1).unsqueeze(-1).expand_as(x)
+        return torch.mul(x, combined)
 
 
 class CBAM(nn.Module):
+    # TODO:
+    #  - sync with corresponding Gene
+    #  - add example and docs
     def __init__(
             self,
             in_channels: int,
