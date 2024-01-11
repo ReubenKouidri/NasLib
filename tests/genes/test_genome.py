@@ -1,7 +1,8 @@
-from dnasty.genes.genetics import Genome, ConvBlock2dGene, MaxPool2dGene
-import coverage
 import unittest
 import copy
+
+from dnasty.genes.genes import ConvBlock2dGene, MaxPool2dGene
+from dnasty.genes.genome import Genome
 
 
 class TestGenome(unittest.TestCase):
@@ -38,7 +39,8 @@ class TestGenome(unittest.TestCase):
         self.assertNotEqual(genome_copy, self.genome)
         self.assertNotEqual(genome_copy.genes, self.genome.genes)
         for g1, g2 in zip(genome_copy.genes, self.genome.genes):
-            self.assertNotEqual(g1, g2)  # check the list of genes are not at the same memory address
+            self.assertNotEqual(g1, g2)  # check the list of genes are not
+            # at the same memory address
             for v1, v2 in zip(g1.exons.values(), g2.exons.values()):
                 self.assertEqual(v1, v2)  # check the values are the same
             for k1, k2 in zip(g1.exons.keys(), g2.exons.keys()):
@@ -46,9 +48,4 @@ class TestGenome(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    cov = coverage.Coverage()
-    cov.start()
     unittest.main()
-    cov.stop()
-    cov.save()
-    cov.report()

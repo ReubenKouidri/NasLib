@@ -1,5 +1,4 @@
 from __future__ import annotations
-import collections.abc as collections
 
 import copy
 import numpy as np
@@ -30,7 +29,7 @@ class Genome:
     def __len__(self):
         return len(self.genes)
 
-    def __init__(self, genes: collections.Iterable[genes.GeneBase]):
+    def __init__(self, genes):
         self.genes = list(genes)
         self.fitness = 0.0
         self.image_dims = 128

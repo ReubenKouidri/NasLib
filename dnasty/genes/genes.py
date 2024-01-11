@@ -9,15 +9,18 @@ import random
 import warnings
 import copy
 import torch.nn as nn
+import dnasty.components as components
 
 __all__ = [
     "LinearBlockGene",
     "ConvBlock2dGene",
     "MaxPool2dGene",
-    "FlattenGene",
     "SpatialAttentionGene",
+    "ChannelAttentionGene",
     "CBAMGene"
 ]
+
+from torch.nn import Module
 
 _allowed_activations = nn.modules.activation.__all__
 
@@ -30,6 +33,7 @@ class GeneBase(abc.ABC):
             raise TypeError(
                 f"Exons must be a Mapping type, not {type(exons).__name__}.")
         self.exons = dict(exons)
+        self.is_expressed = True
 
     @abstractmethod
     def mutate(self, *args, **kwargs) -> None:
@@ -44,15 +48,8 @@ class GeneBase(abc.ABC):
         else:
             raise AttributeError(f"No attribute {name} in {cls.__name__}")
 
-    @abstractmethod
-    def express(self):
-        """
-        Express the gene as a torch.nn.Module.
-        Every Gene object must implement this method.
-        """
-        raise NotImplementedError(
-            "Express function must be implemented!"
-        )
+    def express(self) -> Module:
+        return _build_layer(self)
 
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:
@@ -117,36 +114,30 @@ class LinearBlockGene(GeneBase):
             self._validate_feature("out_features", self.exons["out_features"],
                                    LinearBlockGene.allowed_features))
 
-    def express(self) -> nn.Sequential:
-        cell = nn.Sequential(nn.Linear(self.in_features, self.out_features))
-        if self.dropout:
-            cell.add_module("dropout", nn.Dropout(p=0.5))
-        if self.activation is not None:
-            cell.add_module(self.activation.__class__.__name__,
-                            getattr(nn, self.activation)())
-        return cell
-
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:
         return GeneBase._validate_feature(name, value, allowed_range)
 
 
 class ConvBlock2dGene(GeneBase):
-    allowed_channels = set(2 ** i for i in range(1, 6))
-    allowed_kernel_size = set(range(2, 16, 2))
+    allowed_channels = set(2 ** i for i in range(1, 8))
+    allowed_kernel_size = set(range(2, 16))
 
-    def __init__(self, in_channels: int, out_channels: int,
-                 kernel_size: int | tuple, activation: str = "ReLU",
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int,
+                 kernel_size: int | tuple,
+                 activation: str = "ReLU",
                  batch_norm: bool | None = True) -> None:
         if activation not in _allowed_activations:
             raise ValueError(f"Unknown activation {activation}")
 
         in_channels = self._validate_feature("in_channels", in_channels,
-                                             self.__class__.allowed_channels)
+                                             type(self).allowed_channels)
         out_channels = self._validate_feature("out_channels", out_channels,
-                                              self.__class__.allowed_channels)
+                                              type(self).allowed_channels)
         kernel_size = self._validate_feature("kernel_size", kernel_size,
-                                             self.__class__.allowed_kernel_size)
+                                             type(self).allowed_kernel_size)
 
         exons = {"in_channels": in_channels,
                  "out_channels": out_channels,
@@ -155,22 +146,6 @@ class ConvBlock2dGene(GeneBase):
                  "batch_norm": batch_norm}
 
         super().__init__(exons)
-
-    def express(self) -> nn.Sequential:
-        cell = nn.Sequential()
-        cell.add_module("conv",
-                        nn.Conv2d(in_channels=self.in_channels,
-                                  out_channels=self.out_channels,
-                                  kernel_size=self.kernel_size,
-                                  stride=1, padding=0))
-        if self.batch_norm:
-            cell.add_module("batch_norm",
-                            nn.BatchNorm2d(self.out_channels, momentum=0.1,
-                                           affine=True))
-        if self.activation is not None:
-            cell.add_module(self.activation.__class__.__name__,
-                            getattr(nn, self.activation)())
-        return cell
 
     def mutate(self, fnc):
         # TODO: Implement
@@ -188,15 +163,12 @@ class MaxPool2dGene(GeneBase):
                  kernel_size: Union[tuple, list, int],
                  stride: Union[tuple, list, int, None] = None) -> None:
         kernel_size = self._validate_feature("kernel_size", kernel_size,
-                                             self.__class__.allowed_values)
+                                             MaxPool2dGene.allowed_values)
         if stride is None:
             stride = kernel_size
 
         exons = {"kernel_size": kernel_size, "stride": stride}
         super().__init__(exons)
-
-    def express(self) -> nn.MaxPool2d:
-        return nn.MaxPool2d(kernel_size=self.kernel_size, stride=self.stride)
 
     def mutate(self, fnc):
         # TODO: Implement
@@ -218,39 +190,41 @@ class MaxPool2dGene(GeneBase):
 
 class SpatialAttentionGene(GeneBase):
     allowed_values = set(range(2, 10))
-    in_channels = 2
-    out_channels = 1
-    activation = "Sigmoid"
-    batch_norm = False
 
     def __init__(self, kernel_size: int | tuple):
-        self.kernel_size = self._validate_feature("kernel_size", kernel_size,
-                                                  self.__class__.allowed_values)
+        self.kernel_size = self._validate_feature(
+            "kernel_size", kernel_size,
+            SpatialAttentionGene.allowed_values)
 
-        self.conv_gene = ConvBlock2dGene(self.__class__.in_channels,
-                                         self.__class__.out_channels,
-                                         self.kernel_size, "Sigmoid", False)
-        self.exons = {"kernel_size": self.kernel_size}
-        super().__init__(self.exons)
+        super().__init__({"kernel_size": self.kernel_size})
 
     def mutate(self, *args, **kwargs) -> None:
         dk = 1 if random.random() < 0.5 else -1
         self.exons["kernel_size"] = self._validate_feature(
             "kernel_size",
             self.exons["kernel_size"] + dk,
-            self.__class__.allowed_values)
+            SpatialAttentionGene.allowed_values)
 
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:
-        return super()._validate_feature(name, value, allowed_range)
+        return GeneBase._validate_feature(name, value, allowed_range)
 
 
 class ChannelAttentionGene(GeneBase):
     allowed_range = set(range(2, 10))
 
-    def __init__(self, se_ratio: int):
-        self.se_ratio = self._validate_feature("se_ratio", se_ratio,
-                                               self.__class__.allowed_range)
+    def __init__(self, se_ratio: int, in_channels: int = 1):
+        """
+        Args:
+            se_ratio: the squeeze-excitation ratio.
+            in_channels: this is not an independent var as is set to
+                         match the output of the previous layer.
+                         Therefore, it is not added to the exons
+        """
+        self.in_channels = in_channels
+        self.se_ratio = self._validate_feature(
+            "se_ratio", se_ratio,
+            ChannelAttentionGene.allowed_range)
         super().__init__({"se_ratio": self.se_ratio})
 
     @staticmethod
@@ -262,42 +236,24 @@ class ChannelAttentionGene(GeneBase):
         self.exons["kernel_size"] = self._validate_feature(
             "kernel_size",
             self.exons["kernel_size"] + dk,
-            self.__class__.allowed_values)
+            ChannelAttentionGene.allowed_values)
 
 
 class CBAMGene(GeneBase):
     def __init__(self,
                  ca_gene: ChannelAttentionGene,
-                 sa_gene: SpatialAttentionGene,
-                 ) -> None:
-        self.ca_gene = ca_gene
-        self.sa_gene = sa_gene
-        super().__init__({
-            "ca_gene": self.ca_gene.exons,
-            "sa_gene": self.sa_gene.exons})
+                 sa_gene: SpatialAttentionGene) -> None:
+        super().__init__({"ca_gene": ca_gene, "sa_gene": sa_gene})
 
     def mutate(self, *args, **kwargs) -> None:
         self.ca_gene.mutate(*args, **kwargs)
         self.sa_gene.mutate(*args, **kwargs)
-        self.exons["ca_gene"] = self.ca_gene.exons
-        self.exons["sa_gene"] = self.sa_gene.exons
-
-
-class FlattenGene(GeneBase):
-    def __init__(self):
-        exons = {"start_dim": 1, "end_dim": -1}
-        super().__init__(exons)
-
-    def mutate(self, *args, **kwargs) -> None: pass
-
-    @staticmethod
-    def _validate_feature(**kwargs) -> int: pass
 
 
 def _build_layer(gene: GeneBase) -> nn.Module:
-    name = gene.__class__.__name__.replace("Gene", "")
-    if hasattr(globals(), name):
-        module = globals()
+    name = type(gene).__name__.replace("Gene", "")
+    if hasattr(components, name):
+        module = components
     elif hasattr(nn, name):
         module = nn
     else:

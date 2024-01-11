@@ -1,32 +1,70 @@
 from __future__ import annotations
-from typing import Tuple, Union
-
+from typing import Union
+from collections import OrderedDict
+from dnasty.my_utils.types import size_2_t, size_2_opt_t
 
 import torch
+import torch.nn.functional as F
 from torch import Tensor
 from torch import nn
-from dnasty.genes import genes
+
+__all__ = [
+    "LinearBlock",
+    "ConvBlock2d",
+    "Flatten",
+    "ChannelPool",
+    "SpatialAttention",
+    "ChannelAttention",
+    "CBAM"
+]
 
 
-class MaxPool2D(nn.Module):
+class LinearBlock(nn.Sequential):
+    def __init__(self,
+                 in_features: int,
+                 out_features: int,
+                 dropout: bool = False,
+                 activation: str | None = None) -> None:
+        cell = OrderedDict()
+        cell["linear"] = nn.Linear(in_features, out_features)
+        if dropout:
+            cell["dropout"] = nn.Dropout(p=0.5)
+        if activation is not None:
+            activation = getattr(nn, activation)()
+            cell[f"{type(activation).__name__}"] = activation
+
+        super().__init__(cell)
+
+
+class ConvBlock2d(nn.Sequential):
     def __init__(
             self,
-            stride: Union[int, tuple] | None,
-            kernel_size: int | tuple = None,
-            padding: Union[int, tuple, str] | None = 0,
-            dilation: Union[int, tuple] | None = 1
+            in_channels: int,
+            out_channels: int,
+            kernel_size: size_2_t,
+            stride: size_2_opt_t | None = 1,
+            padding: Union[str, size_2_t] | None = 0,
+            groups: int | None = 1,
+            bias: bool | None = True,
+            bn: bool | None = True,
+            activation: str | None = None
     ) -> None:
-        super(MaxPool2D, self).__init__()
-        self.kernel_size = kernel_size
-        self.stride = stride if stride else kernel_size
-        self.padding = padding
-        self.dilation = dilation
-        self.pool = nn.MaxPool2d(kernel_size=self.kernel_size,
-                                 stride=self.stride,
-                                 padding=self.padding, dilation=self.dilation)
+        layers = OrderedDict()
+        layers["conv"] = nn.Conv2d(in_channels=in_channels,
+                                   out_channels=out_channels,
+                                   kernel_size=kernel_size,
+                                   stride=stride,
+                                   padding=padding,
+                                   groups=groups,
+                                   bias=bias)
+        if bn:
+            layers["batch_norm"] = nn.BatchNorm2d(out_channels, momentum=0.1,
+                                                  affine=True)
+        if activation:
+            activation = getattr(nn, activation)()
+            layers[f"{type(activation).__name__}"] = activation
 
-    def forward(self, x: Tensor) -> Tensor:
-        return self.pool(x)
+        super(ConvBlock2d, self).__init__(layers)
 
 
 class Flatten(nn.Module):
@@ -48,20 +86,23 @@ class Flatten(nn.Module):
 
 class ChannelPool(nn.Module):
     """
-    A PyTorch module that performs channel pooling on an input tensor.
-    The input tensor should have shape `(N, C, H, W)`, where `N` is the batch
-    size,
-    `C` is the number of channels, `H` is the height, and `W` is the width.
+    A module that performs channel pooling on an input tensor.
+    The input tensor should have shape `(N, C, H, W)`, where
+    `N` := batch size,
+    `C` := number of channels,
+    `H` := height, and
+    `W` := width.
 
     Channel pooling computes the maximum and average values over the channel
     dimension separately, then concatenates the results along the channel
     dimension to produce an output tensor of shape `(N, 2, H, W)`,
     i.e. a description of both max and mean features along channel dim.
 
-    Args: None
+    Args:
+        torch.Tensor: A tensor of shape `(N, C, H, W)`.
 
     Returns:
-        A PyTorch module that performs channel pooling on an input tensor.
+        torch.Tensor: A tensor of shape `(N, 2, H, W)`.
 
     Example::
 
@@ -70,68 +111,30 @@ class ChannelPool(nn.Module):
 
         # Apply channel pooling to an input tensor
         x = torch.randn(16, 64, 32, 32)
-        y = channel_pool(x)  # y.shape == torch.Size([16, 2, 32, 32])
+        y = channel_pool(x)
+        y.shape >> torch.Size([16, 2, 32, 32])
     """
 
     @staticmethod
     def forward(x: Tensor) -> Tensor:
-        # torch.max returns type torch.return_types.max: first tensor
-        # contains the max values
-        # whereas the second tensor is an index tensor showing which input
-        # channel the max value occurred in
         return torch.cat((torch.max(x, dim=1)[0].unsqueeze(dim=1),
                           torch.mean(x, dim=1).unsqueeze(dim=1)), dim=1)
 
 
 class SpatialAttention(nn.Module):
-    def __init__(self, kernel_size: int | tuple) -> None:
+    def __init__(self, kernel_size: size_2_t) -> None:
         super(SpatialAttention, self).__init__()
-        self.kernel_size = kernel_size
+        self.spatial = ConvBlock2d(in_channels=2,
+                                   out_channels=1,
+                                   kernel_size=kernel_size,
+                                   padding='same')
         self.compress = ChannelPool()
-        self.conv = ConvBlock2d(in_channels=2, out_channels=1,
-                                kernel_size=self.kernel_size,
-                                stride=1, padding='same', bn=False,
-                                activation="Sigmoid")
 
-    def forward(self, x: Tensor) -> Tensor:
-        sa = self.compress(x)
-        sa = self.conv(sa)
-        return torch.mul(x, sa)  # element-wise
-
-
-class ConvBlock2d(nn.Sequential):
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: Union[int, Tuple],
-            stride: Union[int, Tuple] | None = 1,
-            padding: Union[int, str] | None = 0,
-            groups: int | None = 1,
-            bias: bool | None = True,
-            bn: bool | None = True,
-            activation: str | None = None
-    ) -> None:
-        super(ConvBlock2d, self).__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-        self.groups = groups
-        self.bias = bias
-        self.conv = nn.Conv2d(in_channels=self.in_channels,
-                              out_channels=self.out_channels,
-                              kernel_size=self.kernel_size, stride=self.stride,
-                              padding=self.padding, groups=self.groups,
-                              bias=self.bias)
-        self.add_module("conv", self.conv)
-        if activation:
-            self.add_module(f"{activation}", make_activation(activation))
-        if bn:
-            self.add_module("batch_norm",
-                            nn.BatchNorm2d(self.out_channels, momentum=0.1,
-                                           affine=True))
+    def forward(self, x):
+        x_compressed = self.compress(x)
+        x_out = self.spatial(x_compressed)  # shape (N, 1, H, W)
+        x_out = F.sigmoid(x_out)
+        return torch.mul(x, x_out)
 
 
 class ChannelAttention(nn.Module):
@@ -160,7 +163,7 @@ class CBAM(nn.Module):
             self,
             in_channels: int,
             se_ratio: int,
-            kernel_size: Union[int, tuple] | None = 4,
+            kernel_size: size_2_opt_t = 4,
             spatial: bool | None = True,
             channel: bool | None = True
     ) -> None:
