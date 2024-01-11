@@ -60,7 +60,7 @@ class ConvBlock2d(nn.Sequential):
         if bn:
             layers["batch_norm"] = nn.BatchNorm2d(out_channels, momentum=0.1,
                                                   affine=True)
-        if activation:
+        if activation is not None:
             activation = getattr(nn, activation)()
             layers[f"{type(activation).__name__}"] = activation
 
@@ -124,16 +124,16 @@ class ChannelPool(nn.Module):
 class SpatialAttention(nn.Module):
     def __init__(self, kernel_size: size_2_t) -> None:
         super(SpatialAttention, self).__init__()
-        self.spatial = ConvBlock2d(in_channels=2,
-                                   out_channels=1,
-                                   kernel_size=kernel_size,
-                                   padding='same')
+        self.conv = ConvBlock2d(in_channels=2,
+                                out_channels=1,
+                                kernel_size=kernel_size,
+                                padding='same',
+                                activation='Sigmoid')
         self.compress = ChannelPool()
 
     def forward(self, x):
         x_compressed = self.compress(x)
-        x_out = self.spatial(x_compressed)  # shape (N, 1, H, W)
-        x_out = F.sigmoid(x_out)
+        x_out = self.conv(x_compressed).expand_as(x)
         return torch.mul(x, x_out)
 
 
@@ -160,9 +160,6 @@ class ChannelAttention(nn.Module):
 
 
 class CBAM(nn.Module):
-    # TODO:
-    #  - sync with corresponding Gene
-    #  - add example and docs
     def __init__(
             self,
             in_channels: int,
@@ -172,17 +169,14 @@ class CBAM(nn.Module):
             channel: bool | None = True
     ) -> None:
         super(CBAM, self).__init__()
-        self.in_channels = in_channels
-        self.se_ratio = se_ratio
-        self.kernel_size = kernel_size
         self.spatial = spatial
-        self.channel_gate = ChannelAttention(in_channels=self.in_channels,
-                                             se_ratio=self.se_ratio) if (
-            channel) else None
-        self.spatial_gate = SpatialAttention(
-            self.kernel_size) if spatial else None
+        self.channel = channel
+        self.channel_gate = ChannelAttention(
+            in_channels=in_channels,
+            se_ratio=se_ratio) if self.channel else None
+        self.spatial_gate = SpatialAttention(kernel_size) if spatial else None
 
     def forward(self, x: Tensor) -> Tensor:
-        cb = self.channel_gate(x) if self.channel_gate else x
-        cb = self.spatial_gate(cb) if self.spatial_gate else cb
-        return cb + x
+        out = self.channel_gate(x) if self.channel_gate else x
+        out = self.spatial_gate(out) if self.spatial_gate else out
+        return torch.add(out, x)

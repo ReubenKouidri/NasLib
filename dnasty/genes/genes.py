@@ -22,6 +22,8 @@ __all__ = [
 
 from torch.nn import Module
 
+from dnasty.my_utils.types import size_2_opt_t, size_2_t
+
 _allowed_activations = nn.modules.activation.__all__
 
 
@@ -49,7 +51,7 @@ class GeneBase(abc.ABC):
             raise AttributeError(f"No attribute {name} in {cls.__name__}")
 
     def express(self) -> Module:
-        return _build_layer(self)
+        return _build_module(self)
 
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:
@@ -126,7 +128,7 @@ class ConvBlock2dGene(GeneBase):
     def __init__(self,
                  in_channels: int,
                  out_channels: int,
-                 kernel_size: int | tuple,
+                 kernel_size: size_2_t,
                  activation: str = "ReLU",
                  batch_norm: bool | None = True) -> None:
         if activation not in _allowed_activations:
@@ -160,8 +162,8 @@ class MaxPool2dGene(GeneBase):
     allowed_values = set(range(2, 10))
 
     def __init__(self,
-                 kernel_size: Union[tuple, list, int],
-                 stride: Union[tuple, list, int, None] = None) -> None:
+                 kernel_size: size_2_t,
+                 stride: size_2_opt_t = None) -> None:
         kernel_size = self._validate_feature("kernel_size", kernel_size,
                                              MaxPool2dGene.allowed_values)
         if stride is None:
@@ -176,7 +178,7 @@ class MaxPool2dGene(GeneBase):
 
     @staticmethod
     def _validate_feature(name: str,
-                          value: int | tuple | list,
+                          value: size_2_t,
                           allowed_range: set) -> int | list:
         if isinstance(value, tuple) or isinstance(value, list):
             if len(value) > 2:
@@ -191,7 +193,7 @@ class MaxPool2dGene(GeneBase):
 class SpatialAttentionGene(GeneBase):
     allowed_values = set(range(2, 10))
 
-    def __init__(self, kernel_size: int | tuple):
+    def __init__(self, kernel_size: size_2_t):
         self.kernel_size = self._validate_feature(
             "kernel_size", kernel_size,
             SpatialAttentionGene.allowed_values)
@@ -241,20 +243,21 @@ class ChannelAttentionGene(GeneBase):
 
 
 class CBAMGene(GeneBase):
-    # TODO:
-    #   - complete
-    #   - add documentation
     def __init__(self,
-                 ca_gene: ChannelAttentionGene,
-                 sa_gene: SpatialAttentionGene) -> None:
-        super().__init__({"ca_gene": ca_gene, "sa_gene": sa_gene})
+                 channel_gene: ChannelAttentionGene,
+                 spatial_gene: SpatialAttentionGene):
+        self.channel_gene = channel_gene
+        self.spatial_gene = spatial_gene
+        super().__init__({"in_channels": channel_gene.in_channels,
+                          "se_ratio": channel_gene.se_ratio,
+                          "kernel_size": spatial_gene.kernel_size})
 
     def mutate(self, *args, **kwargs) -> None:
-        self.ca_gene.mutate(*args, **kwargs)
-        self.sa_gene.mutate(*args, **kwargs)
+        self.channel_gene.mutate(*args, **kwargs)
+        self.spatial_gene.mutate(*args, **kwargs)
 
 
-def _build_layer(gene: GeneBase) -> nn.Module:
+def _build_module(gene: GeneBase) -> nn.Module:
     name = type(gene).__name__.replace("Gene", "")
     if hasattr(components, name):
         module = components
@@ -262,7 +265,7 @@ def _build_layer(gene: GeneBase) -> nn.Module:
         module = nn
     else:
         raise AttributeError(
-            f"No class {name} found in either torch.nn or the current module")
+            f"No class {name} found in either torch.nn or dnasty.components")
 
     sig = inspect.signature(getattr(module, name))
     params = [p for p in gene.exons.keys() if p in sig.parameters]
