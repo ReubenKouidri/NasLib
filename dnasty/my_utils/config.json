@@ -6,15 +6,33 @@
     "shuffle": "True",
     "nesterov": "True",
     "momentum": "0.9",
-    "lr": "0.0005"
+    "lr": "0.0005",
+    "device": "cpu"
   },
   "eval": {
     "batch_size": "1",
-    "workers": "1"
+    "workers": "1",
+    "device": "cpu"
   },
   "data": {
     "data_path": "datasets/cpsc_data/test100",
     "reference_path": "datasets/cpsc_data/reference300.csv"
   },
-  "device": "cpu"
+  "nas": {
+    "population_size": "5",
+    "evolution_strategy": "Random",
+    "crossover_method": "None",
+    "mutation_method": "None",
+    "generations": "1",
+    "train_epochs": "40",
+    "default_conv_ker": "10",
+    "default_mpk_size": "3",
+    "default_act": "ReLU",
+    "search_order": [
+      "kernel_size",
+      "out_channels",
+      "activation"
+    ],
+    "device": "cpu"
+  }
 }
