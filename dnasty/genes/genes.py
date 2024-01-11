@@ -211,7 +211,7 @@ class SpatialAttentionGene(GeneBase):
 
 
 class ChannelAttentionGene(GeneBase):
-    allowed_range = set(range(2, 10))
+    allowed_values = set(range(2, 16))
 
     def __init__(self, se_ratio: int, in_channels: int = 1):
         """
@@ -224,22 +224,26 @@ class ChannelAttentionGene(GeneBase):
         self.in_channels = in_channels
         self.se_ratio = self._validate_feature(
             "se_ratio", se_ratio,
-            ChannelAttentionGene.allowed_range)
-        super().__init__({"se_ratio": self.se_ratio})
+            ChannelAttentionGene.allowed_values)
+        super().__init__({"in_channels": self.in_channels,
+                          "se_ratio": self.se_ratio})
 
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:
-        return super().validate(name, value, allowed_range)
+        return GeneBase._validate_feature(name, value, allowed_range)
 
     def mutate(self, *args, **kwargs) -> None:
-        dk = 1 if random.random() < 0.5 else -1
-        self.exons["kernel_size"] = self._validate_feature(
-            "kernel_size",
-            self.exons["kernel_size"] + dk,
+        dr = 1 if random.random() < 0.5 else -1
+        self.se_ratio = self._validate_feature(
+            "se_ratio",
+            self.se_ratio + dr,
             ChannelAttentionGene.allowed_values)
 
 
 class CBAMGene(GeneBase):
+    # TODO:
+    #   - complete
+    #   - add documentation
     def __init__(self,
                  ca_gene: ChannelAttentionGene,
                  sa_gene: SpatialAttentionGene) -> None:
