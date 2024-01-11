@@ -10,7 +10,7 @@ class TestLinearGene(unittest.TestCase):
                                     activation='ReLU',
                                     dropout=True)
 
-    def test_initialization(self):
+    def test_init(self):
         self.assertIsInstance(self.gene, LinearBlockGene)
         self.assertEqual(self.gene.in_features, 10)
         self.assertEqual(self.gene.out_features, 20)
@@ -23,17 +23,15 @@ class TestLinearGene(unittest.TestCase):
                             activation='InvalidActivation', dropout=True)
 
     def test_express_method(self):
-        gene = LinearBlockGene(in_features=10, out_features=20,
-                               activation='ReLU', dropout=True)
-        linear_block = gene.express()
-        self.assertIsInstance(linear_block, nn.Sequential)
+        module = self.gene.express()
+        self.assertIsInstance(module, nn.Sequential)
 
         # Check if the correct modules are added
-        self.assertIsInstance(linear_block[0], nn.Linear)
-        self.assertEqual(linear_block[0].in_features, 10)
-        self.assertEqual(linear_block[0].out_features, 20)
-        self.assertIsInstance(linear_block[1], nn.Dropout)
-        self.assertIsInstance(linear_block[2], nn.ReLU)
+        self.assertIsInstance(module[0], nn.Linear)
+        self.assertEqual(module[0].in_features, 10)
+        self.assertEqual(module[0].out_features, 20)
+        self.assertIsInstance(module[1], nn.Dropout)
+        self.assertIsInstance(module[2], nn.ReLU)
 
     def test_mutate(self):
         pre_drop = self.gene.dropout
