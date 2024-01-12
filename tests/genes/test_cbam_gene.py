@@ -18,7 +18,7 @@ class TestCBAMGene(unittest.TestCase):
         self.assertEqual(self.cbam_gene.kernel_size, 3)
 
     def test_express(self):
-        cbam_module = self.cbam_gene.express()
+        cbam_module = self.cbam_gene.to_module()
         self.assertIsInstance(cbam_module, CBAM)
         x = torch.randn(12, 16, 32, 32)
         y = cbam_module(x)

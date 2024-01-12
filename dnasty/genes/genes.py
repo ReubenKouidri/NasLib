@@ -84,14 +84,19 @@ class GeneBase(abc.ABC):
         Example::
             # Assuming a subclass of GeneBase 'ConvBlock2dGene' and
             corresponding 'ConvBlock2d' in dnasty.components
-            gene = ConvBlock2dGene(
-                {'in_channels': value1,
-                 'out_channels': value2,
-                 'kernel_size': value3,
-                 'activation': 'ReLU'}
-             )
-            my_module = my_gene.express()  # Returns an instance of
-            'ConvBlock2d' configured with the specified exons
+            >>> gene = ConvBlock2dGene({'in_channels': 32,
+            ...                         'out_channels': 64,
+            ...                         'kernel_size': 5,
+            ...                         'activation': 'ReLU'})
+            >>> my_module = gene.to_module()
+            >>> print(my_module)
+            ConvBlock2d(
+                (conv): Conv2d(32, 64, kernel_size=(5, 5), stride=(1, 1))
+                (ReLU): ReLU()
+                (batch_norm): BatchNorm2d(64, eps=1e-05, momentum=0.1,
+                                          affine=True,
+                                          track_running_stats=True)
+            )
         """
         name = type(self).__name__.replace("Gene", "")
         module = getattr(components, name, getattr(nn, name, None))
@@ -104,8 +109,8 @@ class GeneBase(abc.ABC):
             GeneBase.__module_sig_cache[name] = inspect.signature(module)
 
         sig = GeneBase.__module_sig_cache[name]
-        params = {p: self.exons[p] for p in self.exons.keys() if
-                  p in sig.parameters}
+        all_params = {**self.__dict__, **self.exons}
+        params = {p: all_params[p] for p in all_params if p in sig.parameters}
         return module(**params)
 
     @staticmethod

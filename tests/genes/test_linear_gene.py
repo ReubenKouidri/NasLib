@@ -23,15 +23,15 @@ class TestLinearGene(unittest.TestCase):
                             activation='InvalidActivation', dropout=True)
 
     def test_express_method(self):
-        module = self.gene.express()
+        module = self.gene.to_module()
         self.assertIsInstance(module, nn.Sequential)
 
         # Check if the correct modules are added
         self.assertIsInstance(module[0], nn.Linear)
         self.assertEqual(module[0].in_features, 10)
         self.assertEqual(module[0].out_features, 20)
-        self.assertIsInstance(module[1], nn.Dropout)
-        self.assertIsInstance(module[2], nn.ReLU)
+        self.assertIsInstance(module[1], nn.ReLU)
+        self.assertIsInstance(module[2], nn.Dropout)
 
     def test_mutate(self):
         pre_drop = self.gene.dropout

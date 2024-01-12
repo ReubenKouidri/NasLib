@@ -27,7 +27,7 @@ class TestChannelAttentionGene(unittest.TestCase):
 
     def test_express(self):
         # TODO: explicit test for forward meth with known input and output
-        module = self.gene.express()
+        module = self.gene.to_module()
         self.assertIsInstance(module, ChannelAttention)
         self.assertEqual(module.mlp[1].in_features, self.gene.in_channels)
         self.assertEqual(module.mlp[1].out_features,

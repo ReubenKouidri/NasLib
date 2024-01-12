@@ -7,6 +7,13 @@ from dnasty.genes.genome import Genome
 
 class TestGenome(unittest.TestCase):
     def setUp(self):
+        """
+        TODO:
+            - setup genome using every gene type
+            - remove old test code
+            - use new Genome class once implemented with new Gene interface
+        """
+
         self.conv = ConvBlock2dGene(1, 32, 10)
         self.conv2 = ConvBlock2dGene(1, 50, 10)
         self.mp = MaxPool2dGene(2, 2)

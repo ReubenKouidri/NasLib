@@ -17,7 +17,7 @@ class TestSpatialAttentionGene(unittest.TestCase):
             _ = self.gene.invalid
 
     def test_express(self):
-        module = self.gene.express()
+        module = self.gene.to_module()
         x = torch.randn(16, 64, 32, 32)
         y = module(x)
         self.assertEqual(y.shape, torch.Size((16, 64, 32, 32)))

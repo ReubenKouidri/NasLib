@@ -10,7 +10,8 @@ class TestConvBlockGene(unittest.TestCase):
         self.gene = ConvBlock2dGene(
             in_channels=32,
             out_channels=64,
-            kernel_size=5
+            kernel_size=5,
+            activation="ReLU"
         )
 
     def test_init(self):
@@ -26,7 +27,8 @@ class TestConvBlockGene(unittest.TestCase):
             _ = self.gene.invalid
 
     def test_express(self):
-        module = self.gene.express()
+        module = self.gene.to_module()
+        print(module)
         self.assertIsInstance(module, nn.Sequential)
         self.assertIsInstance(module[0], nn.Conv2d)
         self.assertEqual(module[0].in_channels, 32)
@@ -36,11 +38,11 @@ class TestConvBlockGene(unittest.TestCase):
         self.assertEqual(module[0].padding, (0, 0))
         self.assertEqual(module[0].groups, 1)
         self.assertEqual(module[0].bias.shape, torch.Size([64]))
-        self.assertIsInstance(module[1], nn.BatchNorm2d)
-        self.assertIsInstance(module[2], nn.ReLU)
+        self.assertIsInstance(module[1], nn.ReLU)
+        self.assertIsInstance(module[2], nn.BatchNorm2d)
 
     def test_forward(self):
-        module = self.gene.express()
+        module = self.gene.to_module()
         x = torch.randn(2, 32, 32, 32)
         out = module(x)
         self.assertEqual(out.shape, torch.Size([2, 64, 28, 28]))

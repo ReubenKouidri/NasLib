@@ -2,8 +2,13 @@ from __future__ import annotations
 
 import copy
 import numpy as np
-import genes
+from dnasty.genes import genes
 
+
+# TODO:
+#   - This is old code! Refactor genome using the new Gene interface
+#   - Add tests for this class
+#   - Crossover will be implemented in strategy.py
 
 class Genome:
     @staticmethod

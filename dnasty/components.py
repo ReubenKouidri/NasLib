@@ -24,14 +24,14 @@ class LinearBlock(nn.Sequential):
                  in_features: int,
                  out_features: int,
                  dropout: bool = False,
-                 activation: str | None = None) -> None:
+                 activation: str = None) -> None:
         cell = OrderedDict()
         cell["linear"] = nn.Linear(in_features, out_features)
-        if dropout:
-            cell["dropout"] = nn.Dropout(p=0.5)
         if activation is not None:
             activation = getattr(nn, activation)()
             cell[f"{type(activation).__name__}"] = activation
+        if dropout:
+            cell["dropout"] = nn.Dropout(p=0.5)
 
         super().__init__(cell)
 
@@ -42,12 +42,12 @@ class ConvBlock2d(nn.Sequential):
             in_channels: int,
             out_channels: int,
             kernel_size: size_2_t,
-            stride: size_2_opt_t | None = 1,
-            padding: Union[str, size_2_t] | None = 0,
-            groups: int | None = 1,
-            bias: bool | None = True,
-            bn: bool | None = True,
-            activation: str | None = None
+            stride: size_2_opt_t = 1,
+            padding: Union[str, size_2_t] = 0,
+            groups: int = 1,
+            bias: bool = True,
+            bn: bool = True,
+            activation: str = None
     ) -> None:
         layers = OrderedDict()
         layers["conv"] = nn.Conv2d(in_channels=in_channels,
@@ -57,12 +57,12 @@ class ConvBlock2d(nn.Sequential):
                                    padding=padding,
                                    groups=groups,
                                    bias=bias)
-        if bn:
-            layers["batch_norm"] = nn.BatchNorm2d(out_channels, momentum=0.1,
-                                                  affine=True)
         if activation is not None:
             activation = getattr(nn, activation)()
             layers[f"{type(activation).__name__}"] = activation
+        if bn:
+            layers["batch_norm"] = nn.BatchNorm2d(out_channels, momentum=0.1,
+                                                  affine=True)
 
         super(ConvBlock2d, self).__init__(layers)
 
@@ -105,14 +105,11 @@ class ChannelPool(nn.Module):
         torch.Tensor: A tensor of shape `(N, 2, H, W)`.
 
     Example::
-
-        # Create a ChannelPool module
-        channel_pool = ChannelPool()
-
-        # Apply channel pooling to an input tensor
-        x = torch.randn(16, 64, 32, 32)
-        y = channel_pool(x)
-        y.shape >> torch.Size([16, 2, 32, 32])
+        >>> channel_pool = ChannelPool()
+        >>> x = torch.randn(16, 64, 32, 32)
+        >>> y = channel_pool(x)
+        >>> y.shape
+        torch.Size([16, 2, 32, 32])
     """
 
     @staticmethod
@@ -165,8 +162,8 @@ class CBAM(nn.Module):
             in_channels: int,
             se_ratio: int,
             kernel_size: size_2_opt_t = 4,
-            spatial: bool | None = True,
-            channel: bool | None = True
+            spatial: bool = True,
+            channel: bool = True
     ) -> None:
         super(CBAM, self).__init__()
         self.spatial = spatial

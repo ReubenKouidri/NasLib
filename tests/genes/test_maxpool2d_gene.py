@@ -21,7 +21,7 @@ class TestMaxPool2dGene(unittest.TestCase):
         self.assertEqual(len(self.gene2), 2)
 
     def test_express_method(self):
-        max_pool_layer = self.gene1.express()
+        max_pool_layer = self.gene1.to_module()
         self.assertIsInstance(max_pool_layer, nn.MaxPool2d)
         self.assertEqual(max_pool_layer.kernel_size, 2)
         self.assertEqual(max_pool_layer.stride, 2)
