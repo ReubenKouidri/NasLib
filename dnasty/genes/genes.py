@@ -89,7 +89,7 @@ class GeneBase(abc.ABC):
             ...                         'kernel_size': 5,
             ...                         'activation': 'ReLU'})
             >>> my_module = gene.to_module()
-            >>> print(my_module)
+            >>> my_module
             ConvBlock2d(
                 (conv): Conv2d(32, 64, kernel_size=(5, 5), stride=(1, 1))
                 (ReLU): ReLU()
@@ -300,7 +300,6 @@ class ConvBlock2dGene(GeneBase):
                           "batch_norm": batch_norm})
 
     def mutate(self):
-        # TODO: Implement
         pass
 
     @staticmethod
@@ -331,7 +330,7 @@ class MaxPool2dGene(GeneBase):
         >>> module = gene.to_module()
         >>> isinstance(module, nn.MaxPool2d)
         True
-        >>> print(module)
+        >>> module
         MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1,
          ceil_mode=False)
     """
@@ -351,7 +350,6 @@ class MaxPool2dGene(GeneBase):
         super().__init__({"kernel_size": kernel_size, "stride": stride})
 
     def mutate(self, fnc):
-        # TODO: Implement
         pass
 
     @staticmethod

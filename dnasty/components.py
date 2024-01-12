@@ -25,15 +25,15 @@ class LinearBlock(nn.Sequential):
                  out_features: int,
                  dropout: bool = False,
                  activation: str = None) -> None:
-        cell = OrderedDict()
-        cell["linear"] = nn.Linear(in_features, out_features)
+        super().__init__()
+        self.add_module("linear", nn.Linear(in_features, out_features))
+
         if activation is not None:
             activation = getattr(nn, activation)()
-            cell[f"{type(activation).__name__}"] = activation
-        if dropout:
-            cell["dropout"] = nn.Dropout(p=0.5)
+            self.add_module(f"{type(activation).__name__}", activation)
 
-        super().__init__(cell)
+        if dropout:
+            self.add_module("dropout", nn.Dropout(p=0.5))
 
 
 class ConvBlock2d(nn.Sequential):
@@ -44,27 +44,26 @@ class ConvBlock2d(nn.Sequential):
             kernel_size: size_2_t,
             stride: size_2_opt_t = 1,
             padding: Union[str, size_2_t] = 0,
-            groups: int = 1,
-            bias: bool = True,
             bn: bool = True,
             activation: str = None
     ) -> None:
-        layers = OrderedDict()
-        layers["conv"] = nn.Conv2d(in_channels=in_channels,
-                                   out_channels=out_channels,
-                                   kernel_size=kernel_size,
-                                   stride=stride,
-                                   padding=padding,
-                                   groups=groups,
-                                   bias=bias)
+        super().__init__()
+        self.add_module("conv",
+                        nn.Conv2d(in_channels=in_channels,
+                                  out_channels=out_channels,
+                                  kernel_size=kernel_size,
+                                  stride=stride,
+                                  padding=padding))
+
         if activation is not None:
             activation = getattr(nn, activation)()
-            layers[f"{type(activation).__name__}"] = activation
-        if bn:
-            layers["batch_norm"] = nn.BatchNorm2d(out_channels, momentum=0.1,
-                                                  affine=True)
+            self.add_module(f"{type(activation).__name__}", activation)
 
-        super(ConvBlock2d, self).__init__(layers)
+        if bn:
+            self.add_module("batch_norm",
+                            nn.BatchNorm2d(out_channels,
+                                           momentum=0.1,
+                                           affine=True))
 
 
 class Flatten(nn.Module):
