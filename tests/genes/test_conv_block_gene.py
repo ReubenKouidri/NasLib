@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import copy
 
 from dnasty.genes.genes import ConvBlock2dGene
 import unittest
@@ -28,7 +29,6 @@ class TestConvBlockGene(unittest.TestCase):
 
     def test_express(self):
         module = self.gene.to_module()
-        print(module)
         self.assertIsInstance(module, nn.Sequential)
         self.assertIsInstance(module[0], nn.Conv2d)
         self.assertEqual(module[0].in_channels, 32)
@@ -46,6 +46,17 @@ class TestConvBlockGene(unittest.TestCase):
         x = torch.randn(2, 32, 32, 32)
         out = module(x)
         self.assertEqual(out.shape, torch.Size([2, 64, 28, 28]))
+
+    def test_deepcopy(self):
+        copied_gene = copy.deepcopy(self.gene)
+
+        self.assertIsNot(copied_gene, self.gene,
+                         "Deep copy resulted in the same object reference.")
+
+        # this is valid for ConvBlock2dGene as it is not composite (c.f. CBAM)
+        self.assertEqual(copied_gene.__dict__, self.gene.__dict__,
+                         "Attributes of the deep copied object do not match "
+                         "the original.")
 
     def test_len(self):
         self.assertEqual(len(self.gene), 5)

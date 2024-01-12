@@ -1,6 +1,5 @@
 import unittest
-import warnings
-
+import copy
 import torch.nn as nn
 from dnasty.genes.genes import MaxPool2dGene
 
@@ -47,9 +46,16 @@ class TestMaxPool2dGene(unittest.TestCase):
         self.assertEqual(g.kernel_size[0], min(MaxPool2dGene.allowed_values))
         self.assertEqual(g.kernel_size[1], max(MaxPool2dGene.allowed_values))
 
-    def test_mutate(self):
-        # TODO: Implement when method implemented
-        pass
+    def test_deepcopy(self):
+        copied_gene = copy.deepcopy(self.gene1)
+
+        self.assertIsNot(copied_gene, self.gene1,
+                         "Deep copy resulted in the same object reference.")
+
+        # valid for non-composite genes (do not contain other genes)
+        self.assertEqual(copied_gene.__dict__, self.gene1.__dict__,
+                         "Attributes of the deep copied object do not match "
+                         "the original.")
 
 
 if __name__ == '__main__':

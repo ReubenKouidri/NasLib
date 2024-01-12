@@ -1,6 +1,7 @@
 import unittest
 import random
 import torch
+import copy
 from dnasty.genes.genes import ChannelAttentionGene
 from dnasty.components import ChannelAttention
 
@@ -42,6 +43,17 @@ class TestChannelAttentionGene(unittest.TestCase):
         adjusted_value = self.gene._validate_feature("se_ratio", 1,
                                                      self.gene.allowed_values)
         self.assertIn(adjusted_value, self.gene.allowed_values)
+
+    def test_deepcopy(self):
+        copied_gene = copy.deepcopy(self.gene)
+
+        self.assertIsNot(copied_gene, self.gene,
+                         "Deep copy resulted in the same object reference.")
+
+        # valid for non-composite genes (do not contain other genes)
+        self.assertEqual(copied_gene.__dict__, self.gene.__dict__,
+                         "Attributes of the deep copied object do not match "
+                         "the original.")
 
 
 if __name__ == '__main__':

@@ -165,11 +165,21 @@ class GeneBase(abc.ABC):
                 f"No attribute {name} in {cls.__name__}")
 
     def __deepcopy__(self, memo=None):
+        """
+        Inspect cls signature to know which attributes to feed to constructor.
+
+        __getattr__ searches both exons and instance attributes, so leverage
+        this to find the corresponding args.
+        This is important for composite genes such as CBAM as you cannot just
+        clone __dict__.
+        """
         if memo is None:
             memo = {}
         cls = type(self)
-        exons_copy = copy.deepcopy(self.exons, memo)
-        new_obj = cls(**exons_copy)
+        sig = inspect.signature(cls.__init__)
+        params = [param for param in sig.parameters if param != 'self']
+        args = {arg: copy.deepcopy(getattr(self, arg), memo) for arg in params}
+        new_obj = cls(**args)
         memo[id(self)] = new_obj
         return new_obj
 
@@ -400,18 +410,21 @@ class ChannelAttentionGene(GeneBase):
 
     Args:
         se_ratio: the squeeze-excitation ratio.
-        in_channels: this is not an independent var as is set to match
-        the output of the previous layer, and therefore, it is not
-        added to the exons.
+        in_channels: Note that this is not strictly an independent var as
+        it is set to match the output of the previous layer.
     """
-    allowed_values = set(range(2, 16))
+    allowed_values = set(range(2, 17))
 
     def __init__(self, se_ratio: int, in_channels: int = 1):
-        self.in_channels = in_channels
+        in_channels = self._validate_feature(
+            "in_channels",
+            in_channels,
+            ChannelAttentionGene.allowed_values
+        )
         se_ratio = self._validate_feature(
             "se_ratio", se_ratio,
             ChannelAttentionGene.allowed_values)
-        super().__init__({"se_ratio": se_ratio})
+        super().__init__({"in_channels": in_channels, "se_ratio": se_ratio})
 
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:

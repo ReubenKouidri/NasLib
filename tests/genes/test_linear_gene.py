@@ -1,6 +1,7 @@
 import torch.nn as nn
-from dnasty.genes.genes import LinearBlockGene
 import unittest
+import copy
+from dnasty.genes.genes import LinearBlockGene
 
 
 class TestLinearGene(unittest.TestCase):
@@ -42,6 +43,17 @@ class TestLinearGene(unittest.TestCase):
 
     def test_len(self):
         self.assertEqual(len(self.gene), 4)
+
+    def test_deepcopy(self):
+        copied_gene = copy.deepcopy(self.gene)
+
+        self.assertIsNot(copied_gene, self.gene,
+                         "Deep copy resulted in the same object reference.")
+
+        # valid for non-composite genes (do not contain other genes)
+        self.assertEqual(copied_gene.__dict__, self.gene.__dict__,
+                         "Attributes of the deep copied object do not match "
+                         "the original.")
 
 
 if __name__ == "__main__":

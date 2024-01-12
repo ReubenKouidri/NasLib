@@ -1,7 +1,7 @@
 import torch
-
-from dnasty.genes.genes import SpatialAttentionGene
+import copy
 import unittest
+from dnasty.genes.genes import SpatialAttentionGene
 
 
 class TestSpatialAttentionGene(unittest.TestCase):
@@ -24,6 +24,16 @@ class TestSpatialAttentionGene(unittest.TestCase):
 
     def test_len(self):
         self.assertEqual(len(self.gene), 1)
+
+    def test_deepcopy(self):
+        copied_gene = copy.deepcopy(self.gene)
+
+        self.assertIsNot(copied_gene, self.gene,
+                         "Deep copy resulted in the same object reference.")
+
+        self.assertEqual(copied_gene.__dict__, self.gene.__dict__,
+                         "Attributes of the deep copied object do not match "
+                         "the original.")
 
 
 if __name__ == "__main__":

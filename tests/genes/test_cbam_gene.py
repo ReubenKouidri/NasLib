@@ -1,5 +1,6 @@
 import unittest
 import torch
+import copy
 from dnasty.genes.genes import ChannelAttentionGene, SpatialAttentionGene
 from dnasty.genes.genes import CBAMGene
 from dnasty.components import CBAM
@@ -23,6 +24,32 @@ class TestCBAMGene(unittest.TestCase):
         x = torch.randn(12, 16, 32, 32)
         y = cbam_module(x)
         self.assertEqual(y.shape, x.shape)
+
+    def test_deepcopy(self):
+        copied_gene = copy.deepcopy(self.cbam_gene)
+
+        self.assertIsNot(copied_gene, self.cbam_gene,
+                         "Deep copy resulted in the same object reference.")
+
+        self.assertIsNot(copied_gene.channel_gene, self.channel_gene,
+                         "Deep copy resulted in the same object reference.")
+
+        self.assertIsNot(copied_gene.spatial_gene, self.spatial_gene,
+                         "Deep copy resulted in the same object reference.")
+
+        self.assertEqual(copied_gene.exons, self.cbam_gene.exons,
+                         "Attributes of the deep copied object do not match "
+                         "the original.")
+
+        self.assertEqual(copied_gene.channel_gene.exons,
+                         self.cbam_gene.channel_gene.exons,
+                         "Attributes of the deep copied object do not match "
+                         "the original.")
+
+        self.assertEqual(copied_gene.spatial_gene.exons,
+                         self.cbam_gene.spatial_gene.exons,
+                         "Attributes of the deep copied object do not match "
+                         "the original.")
 
 
 if __name__ == '__main__':
