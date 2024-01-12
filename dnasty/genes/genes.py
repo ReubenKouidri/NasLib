@@ -9,6 +9,7 @@ import warnings
 import copy
 import torch.nn as nn
 import dnasty.components as components
+from dnasty.my_utils.types import size_2_opt_t, size_2_t
 
 __all__ = [
     "LinearBlockGene",
@@ -19,29 +20,47 @@ __all__ = [
     "CBAMGene"
 ]
 
-from torch.nn import Module
-
-from dnasty.my_utils.types import size_2_opt_t, size_2_t
-
 _allowed_activations = nn.modules.activation.__all__
 
 
 class GeneBase(abc.ABC):
-    """Base class for all Genes to inherit from"""
+    """
+    Base class for genetic representations of neural network components.
+
+    `GeneBase` acts as an abstract base class for various types of 'genes',
+    each representing a different neural network component or configuration.
+    It provides a common interface and shared functionality for gene mutation,
+    expression into PyTorch modules, and validation of gene features.
+
+    Attributes:
+        exons (dict): A dictionary representing the parts of the gene involved
+                      in the construction of the corresponding nn.Module.
+                      Only the exons are involved in crossover and mutation.
+
+        is_active (bool): A flag controlling whether to express the gene -
+                          useful in the Genome class.
+
+    Args:
+        exons (collections.Mapping): A mapping of gene feature names to their
+        values.
+
+    Raises:
+        TypeError: If the provided exons are not in a mapping format.
+    """
     __module_sig_cache = {}
 
-    def __init__(self, exons):
+    def __init__(self, exons) -> None:
         if not isinstance(exons, collections.Mapping):
             raise TypeError(
                 f"Exons must be a Mapping type, not {type(exons).__name__}.")
         self.exons = dict(exons)
-        self.is_expressed = True
+        self.is_active = True
 
     @abstractmethod
     def mutate(self, *args, **kwargs) -> None:
         raise NotImplementedError("Mutate function must be implemented!")
 
-    def express(self) -> Module:
+    def to_module(self) -> nn.Module:
         """
         Dynamically creates and returns a PyTorch module based on the
         gene's configuration.
@@ -58,18 +77,18 @@ class GeneBase(abc.ABC):
             AttributeError: If no corresponding class is found in either
             `dnasty.components` or `torch.nn` for the given gene type.
 
-        Returns:
+        :return:
             Module: A torch.nn.Module corresponding to the gene's type
             and configuration.
 
-        Example:
+        Example::
             # Assuming a subclass of GeneBase 'ConvBlock2dGene' and
             corresponding 'ConvBlock2d' in dnasty.components
             gene = ConvBlock2dGene(
                 {'in_channels': value1,
                  'out_channels': value2,
                  'kernel_size': value3,
-                 'activation': 'ReLU',}
+                 'activation': 'ReLU'}
              )
             my_module = my_gene.express()  # Returns an instance of
             'ConvBlock2d' configured with the specified exons
@@ -92,12 +111,16 @@ class GeneBase(abc.ABC):
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:
         """
-        Adjusts the feature to the nearest valid value if not in the allowed set
+        Adjusts the feature to the nearest valid value if not in
+        the allowed set.
 
-        :param name: Name of the feature.
-        :param value: Value of the feature.
-        :param allowed_range: Allowed set of values for the feature.
-        :return: Adjusted feature value.
+        Args:
+            name (str): The name of the feature.
+            value (int): The value of the feature.
+            allowed_range (set): The allowed set of values for the feature.
+
+        Returns:
+            Adjusted feature value if not in the allowed set else value.
         """
         if value not in allowed_range:
             closest_val = min(allowed_range,
@@ -117,7 +140,7 @@ class GeneBase(abc.ABC):
         inheritance graph. If that fails, it looks for the attribute in the
         `exons` dictionary, and returns it accordingly.
 
-        Parameters:
+        Args:
             name (str): The name of the attribute being accessed.
 
         Returns:
@@ -128,7 +151,6 @@ class GeneBase(abc.ABC):
             AttributeError: If the attribute is not found.
         """
         cls = type(self)
-        print(cls)
         if hasattr(cls, name):
             return getattr(cls, name)
         elif name in self.exons:
@@ -151,36 +173,61 @@ class GeneBase(abc.ABC):
 
 
 class LinearBlockGene(GeneBase):
+    """
+    LinearBlockGene encodes the standard configuration:
+        nn.Linear -> Activation -> Dropout
+
+    Attributes:
+        allowed_features (set): A set defining the allowed values for
+        the number of in- and out-features of the linear block.
+
+    Args:
+        in_features (int): The number of inputs to the linear layer.
+        out_features (int): The output size of the linear layer.
+        activation (str | None, optional): The activation function to be
+         applied. Must be one of the allowed activations. Defaults to None.
+        dropout (bool, optional): Flag to indicate whether dropout should be
+        applied. Defaults to True.
+
+    Raises:
+        ValueError: If the provided activation function is not allowed.
+        TypeError: If the dropout argument is not a boolean.
+    """
     allowed_features = set(range(9, 10_000))
 
     def __init__(self,
                  in_features: int,
                  out_features: int,
-                 activation: str | None = None,
+                 activation: str = None,
                  dropout: bool = True) -> None:
+
         if activation is not None and activation not in _allowed_activations:
             raise ValueError(
-                f"Activation {activation} not in {_allowed_activations}.")
+                f"Activation ({activation}) not in {_allowed_activations}.")
         if not isinstance(dropout, bool):
             raise TypeError(
                 f"dropout must be a boolean, not {type(dropout).__name__}.")
-        in_features = self._validate_feature("in_features", in_features,
-                                             LinearBlockGene.allowed_features)
-        out_features = self._validate_feature("out_features", out_features,
-                                              LinearBlockGene.allowed_features)
-        exons = {"in_features": in_features,
-                 "out_features": out_features,
-                 "dropout": dropout,
-                 "activation": activation}
 
-        super().__init__(exons)
+        in_features = self._validate_feature("in_features",
+                                             in_features,
+                                             LinearBlockGene.allowed_features)
+        out_features = self._validate_feature("out_features",
+                                              out_features,
+                                              LinearBlockGene.allowed_features)
+        super().__init__({
+            "in_features": in_features,
+            "out_features": out_features,
+            "dropout": dropout,
+            "activation": activation
+        })
 
     def mutate(self) -> None:
-        self.exons["dropout"] = not self.exons["dropout"]
-        self.exons["out_features"] += random.randrange(-100, 100, 10)
-        self.exons["out_features"] = (
-            self._validate_feature("out_features", self.exons["out_features"],
-                                   LinearBlockGene.allowed_features))
+        self.dropout = not self.dropout
+        self.out_features += random.randrange(-100, 100, 10)
+        self.out_features = self._validate_feature(
+            "out_features",
+            self.out_features,
+            LinearBlockGene.allowed_features)
 
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:
@@ -188,6 +235,30 @@ class LinearBlockGene(GeneBase):
 
 
 class ConvBlock2dGene(GeneBase):
+    """
+    A Gene encoding the common conv2d configuration:
+        Conv2d -> Activation -> BatchNorm2d
+
+    Attributes:
+        allowed_channels (set): Defines the allowed range for the number
+        of input and output channels.
+        allowed_kernel_size (set): Defines the allowed range for the
+        kernel size.
+
+    Args:
+        in_channels (int): Number of channels in the input image.
+        out_channels (int): Number of channels produced by the convolution.
+        kernel_size (size_2_t): Size of the convolving kernel.
+        activation (str, optional): Name of the activation function to be
+        applied. Must be one of the allowed activations. Defaults to "ReLU".
+        batch_norm (bool | None, optional): Indicates whether batch
+        normalization should be applied. Defaults to True.
+
+    Raises:
+        ValueError: If the provided activation is not in the list of
+        allowed activations.
+    """
+
     allowed_channels = set(2 ** i for i in range(1, 8))
     allowed_kernel_size = set(range(2, 16))
 
@@ -207,15 +278,13 @@ class ConvBlock2dGene(GeneBase):
         kernel_size = self._validate_feature("kernel_size", kernel_size,
                                              type(self).allowed_kernel_size)
 
-        exons = {"in_channels": in_channels,
-                 "out_channels": out_channels,
-                 "kernel_size": kernel_size,
-                 "activation": activation,
-                 "batch_norm": batch_norm}
+        super().__init__({"in_channels": in_channels,
+                          "out_channels": out_channels,
+                          "kernel_size": kernel_size,
+                          "activation": activation,
+                          "batch_norm": batch_norm})
 
-        super().__init__(exons)
-
-    def mutate(self, fnc):
+    def mutate(self):
         # TODO: Implement
         pass
 
@@ -225,6 +294,32 @@ class ConvBlock2dGene(GeneBase):
 
 
 class MaxPool2dGene(GeneBase):
+    """
+    Gene encoding a standard torch.nn.max_pool2d layer.
+
+    Attributes:
+        allowed_values (set): Defines the allowed range for the kernel size
+        and stride values.
+
+    Args:
+        kernel_size (size_2_t): Size of the pooling window.
+        stride (size_2_opt_t, optional): The stride of the window. Defaults
+        to the same value as kernel_size.
+
+    Raises:
+        ValueError: If the provided kernel size is not within the allowed
+        range, or dim > 2.
+
+    Example:
+        # Creating a MaxPool2dGene with a kernel size of 2x2 and default stride
+        >>> gene = MaxPool2dGene(kernel_size=2)
+        >>> module = gene.to_module()
+        >>> isinstance(module, nn.MaxPool2d)
+        True
+        >>> print(module)
+        MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1,
+         ceil_mode=False)
+    """
     allowed_values = set(range(2, 10))
 
     def __init__(self,
@@ -234,9 +329,11 @@ class MaxPool2dGene(GeneBase):
                                              MaxPool2dGene.allowed_values)
         if stride is None:
             stride = kernel_size
+        else:
+            stride = self._validate_feature("stride", stride,
+                                            MaxPool2dGene.allowed_values)
 
-        exons = {"kernel_size": kernel_size, "stride": stride}
-        super().__init__(exons)
+        super().__init__({"kernel_size": kernel_size, "stride": stride})
 
     def mutate(self, fnc):
         # TODO: Implement
@@ -257,20 +354,31 @@ class MaxPool2dGene(GeneBase):
 
 
 class SpatialAttentionGene(GeneBase):
+    """
+    Gene encoding a spatial attention module: https://arxiv.org/abs/1807.06521
+
+    Attributes:
+        allowed_values (set): Defines the allowed range for the kernel size
+        of the spatial attention mechanism.
+
+    Args:
+        kernel_size (size_2_t): The size of the kernel to be used.
+         Can be a single integer or a tuple of two integers.
+    """
     allowed_values = set(range(2, 10))
 
     def __init__(self, kernel_size: size_2_t):
-        self.kernel_size = self._validate_feature(
+        kernel_size = self._validate_feature(
             "kernel_size", kernel_size,
             SpatialAttentionGene.allowed_values)
 
-        super().__init__({"kernel_size": self.kernel_size})
+        super().__init__({"kernel_size": kernel_size})
 
     def mutate(self, *args, **kwargs) -> None:
         dk = 1 if random.random() < 0.5 else -1
-        self.exons["kernel_size"] = self._validate_feature(
+        self.kernel_size = self._validate_feature(
             "kernel_size",
-            self.exons["kernel_size"] + dk,
+            self.kernel_size + dk,
             SpatialAttentionGene.allowed_values)
 
     @staticmethod
@@ -279,22 +387,26 @@ class SpatialAttentionGene(GeneBase):
 
 
 class ChannelAttentionGene(GeneBase):
+    """
+    Gene encoding a channel attention module: https://arxiv.org/abs/1807.06521
+
+    Attributes:
+        allowed_values (set): Defines the allowed range for the squeeze
+
+    Args:
+        se_ratio: the squeeze-excitation ratio.
+        in_channels: this is not an independent var as is set to match
+        the output of the previous layer, and therefore, it is not
+        added to the exons.
+    """
     allowed_values = set(range(2, 16))
 
     def __init__(self, se_ratio: int, in_channels: int = 1):
-        """
-        Args:
-            se_ratio: the squeeze-excitation ratio.
-            in_channels: this is not an independent var as is set to
-                         match the output of the previous layer.
-                         Therefore, it is not added to the exons
-        """
         self.in_channels = in_channels
-        self.se_ratio = self._validate_feature(
+        se_ratio = self._validate_feature(
             "se_ratio", se_ratio,
             ChannelAttentionGene.allowed_values)
-        super().__init__({"in_channels": self.in_channels,
-                          "se_ratio": self.se_ratio})
+        super().__init__({"se_ratio": se_ratio})
 
     @staticmethod
     def _validate_feature(name: str, value: int, allowed_range: set) -> int:
@@ -309,6 +421,23 @@ class ChannelAttentionGene(GeneBase):
 
 
 class CBAMGene(GeneBase):
+    """
+    A Gene encoding the Convolutional Block Attention Module (CBAM):
+    https://arxiv.org/abs/1807.06521.
+
+    Args:
+        channel_gene (ChannelAttentionGene): A gene to configure the
+            channel attention mechanism.
+        spatial_gene (SpatialAttentionGene): A gene to configure the
+            spatial attention mechanism.
+
+    Attributes:
+        channel_gene (ChannelAttentionGene): Stored as an attribute for
+        the moment so that these genes can be activated later.
+        This might change.
+        spatial_gene (SpatialAttentionGene): Same as above...
+    """
+
     def __init__(self,
                  channel_gene: ChannelAttentionGene,
                  spatial_gene: SpatialAttentionGene):
