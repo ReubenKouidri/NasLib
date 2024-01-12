@@ -24,8 +24,7 @@ class StatisticsReporter:
         return self.best_genome().fitness
 
     def get_fitness_stat(self, func):
-        df = pd.DataFrame().from_dict(
-            self.generation_statistics)
+        df = pd.DataFrame().from_dict(self.generation_statistics)
         stats = list(df[f'{func}_fitness'])
         return stats
 

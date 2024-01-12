@@ -11,15 +11,6 @@ import torch.nn as nn
 import dnasty.components as components
 from dnasty.my_utils.types import size_2_opt_t, size_2_t
 
-__all__ = [
-    "LinearBlockGene",
-    "ConvBlock2dGene",
-    "MaxPool2dGene",
-    "SpatialAttentionGene",
-    "ChannelAttentionGene",
-    "CBAMGene"
-]
-
 _allowed_activations = nn.modules.activation.__all__
 
 

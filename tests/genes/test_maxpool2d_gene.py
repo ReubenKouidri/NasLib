@@ -1,7 +1,7 @@
 import unittest
 import copy
 import torch.nn as nn
-from dnasty.genes.genes import MaxPool2dGene
+from dnasty.genes import MaxPool2dGene
 
 
 class TestMaxPool2dGene(unittest.TestCase):

@@ -2,7 +2,7 @@ import unittest
 import random
 import torch
 import copy
-from dnasty.genes.genes import ChannelAttentionGene
+from dnasty.genes import ChannelAttentionGene
 from dnasty.components import ChannelAttention
 
 

@@ -5,6 +5,9 @@ from typing import MutableSequence, TypeVar, Callable, Any
 import collections.abc as abc
 import functools
 from datasets import CPSCDataset2D
+
+# TODO: This is an old file that needs to be revamped
+
 random.seed(9834275)
 
 T_co = TypeVar('T_co', covariant=True)
@@ -40,10 +43,12 @@ def split(dataset, ratio: tuple) -> tuple:
         return train_set, eval_set, test_set
 
 
-def split_dataset(dataset: CPSCDataset2D, ksplit: tuple[int, tuple]) -> tuple[tuple]:
+def split_dataset(dataset: CPSCDataset2D,
+                  ksplit: tuple[int, tuple]) -> tuple[tuple]:
     if ksplit[0] > 1:
         return tuple(split(dataset, ksplit[1]) for _ in range(ksplit[0]))
     return split(dataset, ksplit[1])
+
 
 # decorator to apply kfold split on a load_dataset() function
 def ksplit(k: int, ratio: abc.Sequence) -> Callable[..., Any]:
@@ -59,7 +64,9 @@ def ksplit(k: int, ratio: abc.Sequence) -> Callable[..., Any]:
         ratio = [round(x / sum(ratio), 2) for x in ratio]
 
     if k < 0:
-        warnings.warn(f"You supplied an invalid value for k ({k})... resorting to default k = 1")
+        warnings.warn(
+            f"You supplied an invalid value for k ({k})... resorting to "
+            f"default k = 1")
         k = 1
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -67,5 +74,7 @@ def ksplit(k: int, ratio: abc.Sequence) -> Callable[..., Any]:
         def inner(*args, **kwargs) -> tuple:
             dataset = func(*args, **kwargs)
             return split_dataset(dataset, ratio, k)
+
         return inner
+
     return decorator
