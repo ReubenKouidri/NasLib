@@ -1,7 +1,7 @@
 import unittest
 import copy
 import torch.nn as nn
-from dnasty.genes import MaxPool2dGene
+from dnasty.genetics import MaxPool2dGene
 
 
 class TestMaxPool2dGene(unittest.TestCase):
@@ -26,16 +26,17 @@ class TestMaxPool2dGene(unittest.TestCase):
         self.assertEqual(max_pool_layer.stride, 2)
 
     def test_invalid_integer_kernel_size(self):
-        kernel_size = max(MaxPool2dGene.allowed_values) + 1
+        kernel_size = 0
         with self.assertWarns(UserWarning):
             g = MaxPool2dGene(kernel_size=kernel_size)
 
-        self.assertEqual(g.kernel_size, max(MaxPool2dGene.allowed_values))
+        self.assertEqual(g.kernel_size,
+                         min(MaxPool2dGene._feature_ranges["kernel_size"]))
         self.assertEqual(g.stride, g.kernel_size)
 
     def test_invalid_sequence_kernel_size(self):
-        max_val = max(MaxPool2dGene.allowed_values)
-        min_val = min(MaxPool2dGene.allowed_values)
+        max_val = max(MaxPool2dGene._feature_ranges["kernel_size"])
+        min_val = min(MaxPool2dGene._feature_ranges["kernel_size"])
         kernel_size = (min_val - 1, max_val + 1)
 
         with self.assertWarns(UserWarning):
@@ -43,8 +44,8 @@ class TestMaxPool2dGene(unittest.TestCase):
 
         self.assertEqual(g.kernel_size, g.stride)
         self.assertIsInstance(g.kernel_size, list)
-        self.assertEqual(g.kernel_size[0], min(MaxPool2dGene.allowed_values))
-        self.assertEqual(g.kernel_size[1], max(MaxPool2dGene.allowed_values))
+        self.assertEqual(g.kernel_size[0], min_val)
+        self.assertEqual(g.kernel_size[1], max_val)
 
     def test_deepcopy(self):
         copied_gene = copy.deepcopy(self.gene1)
@@ -52,7 +53,7 @@ class TestMaxPool2dGene(unittest.TestCase):
         self.assertIsNot(copied_gene, self.gene1,
                          "Deep copy resulted in the same object reference.")
 
-        # valid for non-composite genes (do not contain other genes)
+        # valid for non-composite genetics (do not contain other genetics)
         self.assertEqual(copied_gene.__dict__, self.gene1.__dict__,
                          "Attributes of the deep copied object do not match "
                          "the original.")

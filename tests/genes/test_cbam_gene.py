@@ -1,8 +1,8 @@
 import unittest
 import torch
 import copy
-from dnasty.genes import ChannelAttentionGene, SpatialAttentionGene
-from dnasty.genes import CBAMGene
+from dnasty.genetics import ChannelAttentionGene, SpatialAttentionGene
+from dnasty.genetics import CBAMGene
 from dnasty.components import CBAM
 
 

@@ -1,7 +1,7 @@
 import torch
 import copy
 import unittest
-from dnasty.genes import SpatialAttentionGene
+from dnasty.genetics import SpatialAttentionGene
 
 
 class TestSpatialAttentionGene(unittest.TestCase):

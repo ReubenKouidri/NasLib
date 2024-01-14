@@ -2,7 +2,7 @@ import unittest
 import random
 import torch
 import copy
-from dnasty.genes import ChannelAttentionGene
+from dnasty.genetics import ChannelAttentionGene
 from dnasty.components import ChannelAttention
 
 
@@ -24,7 +24,8 @@ class TestChannelAttentionGene(unittest.TestCase):
         random.seed(0)  # Set seed for reproducibility
         self.gene.mutate()
         # Check if mutation occurred within allowed range
-        self.assertIn(self.gene.se_ratio, ChannelAttentionGene.allowed_values)
+        self.assertIn(self.gene.se_ratio,
+                      ChannelAttentionGene._feature_ranges["se_ratio"])
 
     def test_express(self):
         # TODO: explicit test for forward meth with known input and output
@@ -40,9 +41,8 @@ class TestChannelAttentionGene(unittest.TestCase):
         self.assertEqual(test_output.shape, test_input.shape)
 
     def test_validate_feature(self):
-        adjusted_value = self.gene._validate_feature("se_ratio", 1,
-                                                     self.gene.allowed_values)
-        self.assertIn(adjusted_value, self.gene.allowed_values)
+        self.gene.se_ratio = 1
+        self.assertIn(self.gene.se_ratio, self.gene._feature_ranges["se_ratio"])
 
     def test_deepcopy(self):
         copied_gene = copy.deepcopy(self.gene)
@@ -50,7 +50,7 @@ class TestChannelAttentionGene(unittest.TestCase):
         self.assertIsNot(copied_gene, self.gene,
                          "Deep copy resulted in the same object reference.")
 
-        # valid for non-composite genes (do not contain other genes)
+        # valid for non-composite genetics (do not contain other genetics)
         self.assertEqual(copied_gene.__dict__, self.gene.__dict__,
                          "Attributes of the deep copied object do not match "
                          "the original.")
