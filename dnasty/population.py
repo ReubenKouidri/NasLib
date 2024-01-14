@@ -1,4 +1,4 @@
-from dnasty.genes.genetics import Genome, FlattenGene, ConvBlock2dGene, LinearBlockGene, MaxPool2dGene, _build_layer
+from dnasty.genetics import *
 import torch
 from torch.utils.data import DataLoader, random_split
 import torch.nn as nn
@@ -9,6 +9,11 @@ import copy
 from dnasty.my_utils.config import Config
 import json
 import os
+
+""" 
+OLD CODE!
+Will be completely replaced by a new interface! Kept for reference only. 
+"""
 
 local = os.getcwd()
 config_path = os.path.join(local, "dnasty/my_utils/nas_config.json")
