@@ -45,23 +45,6 @@ class Genome:
             new_genes[unique_name] = gene
         return cls(new_genes)
 
-    @staticmethod
-    def reduce_func(d: int, f: int, p: int, s: int) -> int:
-        """
-        A utility function to calculate the reduced dimension after applying
-        a conv or pooling layer with given parameters.
-
-        Args:
-            d (int): Original dimension.
-            f (int): Filter size.
-            p (int): Padding.
-            s (int): Stride.
-
-        Returns:
-            int: The reduced dimension.
-        """
-        return 1 + (d - f + 2 * p) // s
-
     @property
     def genes_iter(self) -> Iterator[genetics.GeneBase]:
         """
@@ -137,16 +120,27 @@ class Genome:
         This method computes the resulting dimensions after applying all
         convolutional and pooling layers in the gene sequence.
 
+        reduce_func: A utility function to calculate the reduced dimension
+        after applying a conv or pooling layer with given parameters:
+            d (int): Original dimension.
+            f (int): Filter size.
+            p (int): Padding.
+            s (int): Stride.
+
         Returns:
             int: The output dimensions.
         """
+
+        def reduce_func(d, f, p, s):
+            return 1 + (d - f + 2 * p) // s
+
         dims = self.image_dims
         for gene in self.genes.values():
             if isinstance(gene, genetics.ConvBlock2dGene):
-                dims = self.reduce_func(dims, gene.kernel_size, 0, 1)
+                dims = reduce_func(dims, gene.kernel_size, 0, 1)
             elif isinstance(gene, genetics.MaxPool2dGene):
-                dims = self.reduce_func(dims, gene.kernel_size, 0,
-                                        gene.kernel_size)
+                dims = reduce_func(dims, gene.kernel_size, 0,
+                                   gene.kernel_size)
         return dims
 
     def __deepcopy__(self, memo) -> Genome:
