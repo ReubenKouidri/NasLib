@@ -1,11 +1,13 @@
 from typing import Optional, TypeVar, Union, Tuple
+import torch.nn as nn
 
 __all__ = [
     'size_1_t',
     'size_2_t',
     'size_2_opt_t',
     'size_any_t',
-    'size_any_opt_t'
+    'size_any_opt_t',
+    'act_t'
 ]
 
 T = TypeVar('T')
@@ -22,3 +24,5 @@ size_2_t = _scalar_or_tuple_2_t[int]
 # (eg, adaptive pool parameters, padding with default value, etc.)
 size_any_opt_t = _scalar_or_tuple_any_t[Optional[int]]
 size_2_opt_t = _scalar_or_tuple_2_t[Optional[int]]
+
+act_t = Optional[Union[str, nn.Module]]
