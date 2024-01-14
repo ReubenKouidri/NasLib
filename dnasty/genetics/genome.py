@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import numpy as np
-from dnasty.genes import genes
+from dnasty import genes
 
 
 # TODO:
