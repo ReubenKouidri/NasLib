@@ -1,10 +1,8 @@
 import unittest
-from dnasty.my_utils.config import Config
+from dnasty.my_utils import Config
 
 
 class TestConfig(unittest.TestCase):
-
-    # Assuming you've added a method in Config class to get data
     def test_mapping_input(self):
         config_obj = Config({'key1': 'value1', 'key2': 10})
         self.assertIsInstance(config_obj, Config)
@@ -43,9 +41,8 @@ class TestConfig(unittest.TestCase):
         with self.assertRaises(AttributeError):
             _ = config_obj.nonexistent_key
 
-    def test_from_fp(self):
-        fp = "test_config.json"
-        config_obj = Config.from_fp(fp)
+    def test_from_file(self):
+        config_obj = Config.from_file("../tests/utils/test_config.json")
         self.assertIsInstance(config_obj, Config)
         self.assertEqual(config_obj.key1, 1)
         self.assertEqual(config_obj.key2, 2)
