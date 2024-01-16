@@ -1,5 +1,36 @@
 {
-  "key1": "1",
-  "key2": "2",
-  "nested": {"n1": "1.0", "n2": "2.0"}
+  "first": {
+    "s": "CrossEntropyLoss",
+    "i": "10",
+    "f": "0.1",
+    "t": "True",
+    "F": "False",
+    "n": "None"
+  },
+  "second": {
+    "s": "Random",
+    "i": "10",
+    "f": "0.1",
+    "t": "True",
+    "F": "False",
+    "n": "None",
+    "l": [
+      "kernel_size",
+      "out_channels",
+      "activation"
+    ],
+    "nested_mapping": {
+      "s": "Random",
+      "i": "10",
+      "f": "0.1",
+      "T": "True",
+      "F": "False",
+      "n": "None",
+      "l": [
+        "kernel_size",
+        "out_channels",
+        "activation"
+      ]
+    }
+  }
 }

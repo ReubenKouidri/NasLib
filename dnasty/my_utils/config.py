@@ -4,65 +4,80 @@ from collections import abc
 import json
 
 
-def _load_json(json_file: str) -> dict:
-    with open(json_file) as file:
-        return json.load(file)
+def _convert_type(value: str) -> Any:
+    """Convert string to int, float, bool, NoneType, or leave as str."""
+    try:
+        value = int(value)
+    except ValueError:
+        try:
+            value = float(value)
+        except ValueError:
+            if value.lower() == "none":
+                return None
+            if value.lower() == "true":
+                return True
+            if value.lower() == "false":
+                return False
+    return value
 
 
 class Config:
-    """ object providing read-only access to configurations """
+    """
+    A configuration handler class for loading and accessing JSON
+    configuration data.
 
-    @classmethod
-    def from_file(cls, string: str) -> Config:
-        return cls(_load_json(string))
+    This class converts JSON data into a Python object, allowing
+    for attribute-style access. It supports nested configurations
+    and automatically converts string values to appropriate Python
+    data types (int, float, bool, None, or str).
 
-    def __new__(cls,
-                arg: abc.MutableSequence | Any) -> Config | list[Config] | Any:
+    The class can be initialized with a dictionary representing
+    configuration data, typically loaded from a JSON file.
+
+    Attributes:
+        __dict__ (dict): A dictionary holding configuration
+                         keys and values.
+
+    Methods:
+        __init__(arg): Initialize the Config instance with a mapping object.
+        _create_config(entry): Class method to create Config objects from
+        JSON entries.
+        from_file(file_path): Class method to load configuration from a
+        JSON file.
+        __getattr__(item): Special method to allow attribute-style access.
+        __repr__(): Special method to provide a string representation of
+        the object.
+    """
+
+    def __init__(self, arg):
         if isinstance(arg, abc.Mapping):
-            return super().__new__(cls)
-        elif isinstance(arg, abc.MutableSequence):
-            return [cls(item) for item in arg]
-        else:
-            return arg
-
-    def __init__(self, mapping) -> None:
-        if isinstance(mapping, Config):
-            self.__data = mapping.__data
-        elif isinstance(mapping, abc.Mapping):
-            self.__data = self._convert(dict(mapping))
+            self.__dict__.update(
+                {k: self._process_entry(v) for k, v in arg.items()})
         else:
             raise TypeError(
-                f"Config must be a mapping or sequence, not "
-                f"{type(mapping).__name__}."
-            )
-
-    def __getattr__(self, name):
-        if name in self.__data:
-            return Config(self.__data[name])
-        else:
-            raise AttributeError(f"'Config' object has no attribute '{name}'")
-
-    def _convert(self, d: dict) -> dict:
-        for key, value in d.items():
-            if isinstance(value, dict):
-                d[key] = self._convert(value)
-            elif isinstance(value, str):
-                d[key] = self._convert_type(value)
-        return d
+                f"Config must be a mapping, not {type(arg).__name__}.")
 
     @staticmethod
-    def _convert_type(value: str) -> Any:
-        """Try to convert to int, float, bool, NoneType, or leave as str."""
-        try:
-            value = int(value)
-        except ValueError:
-            try:
-                value = float(value)
-            except ValueError:
-                if value.lower() == "none":
-                    return None
-                if value.lower() == "true":
-                    return True
-                if value.lower() == "false":
-                    return False
-        return value
+    def _process_entry(entry):
+        if isinstance(entry, abc.MutableMapping):
+            return Config(entry)
+        elif isinstance(entry, list):
+            return [Config._process_entry(item) if
+                    isinstance(item, abc.MutableMapping) else
+                    _convert_type(item) for item in entry]
+        else:
+            return _convert_type(entry)
+
+    @classmethod
+    def from_file(cls, file_path: str) -> Config:
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        return cls(data)
+
+    def __getattr__(self, item):
+        if item in self.__dict__:
+            return self.__dict__[item]
+        raise AttributeError(f"'Config' object has no attribute '{item}'")
+
+    def __repr__(self):
+        return f"Config({self.__dict__!r})"
