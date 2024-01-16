@@ -80,4 +80,11 @@ class Config:
         raise AttributeError(f"'Config' object has no attribute '{item}'")
 
     def __repr__(self):
-        return f"Config({self.__dict__!r})"
+        items = []
+        for key, value in self.__dict__.items():
+            if isinstance(value, Config):
+                display_value = f"\n  {key}={repr(value)}"
+            else:
+                display_value = f"{key}: {repr(value)}"
+            items.append(display_value)
+        return f"Config({', '.join(items)})"
