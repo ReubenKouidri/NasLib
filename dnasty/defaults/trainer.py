@@ -35,13 +35,20 @@ class Trainer:
     def __init__(self,
                  config: Config,
                  checkpoint_dir: str = 'checkpoints',
-                 algo_mode: bool | None = False
                  ) -> None:
         self.config = config
         self.checkpoint_dir = checkpoint_dir
-        self.trainset, self.valset = self._load_data(self.config.data.data_path,
-                                                     self.config.data.reference_path)
-        self.algo_mode = algo_mode
+        self.trainset, self.valset = self._load_data(config.data.data_path,
+                                                     config.data.reference_path)
+        self.train_loader = self._ddl(DataLoader(self.trainset,
+                                                 self.config.train.batch_size,
+                                                 shuffle=True),
+                                      self.config.device)
+        self.validation_loader = self._ddl(
+            DataLoader(self.valset,
+                       self.config.validation.batch_size,
+                       shuffle=False),
+            self.config.device)
 
     @staticmethod
     def _load_data(data_path, ref_path, train_pct: float = 0.8):
@@ -89,24 +96,17 @@ class Trainer:
     def _ddl(dataloader, device):
         return DeviceDataLoader(dataloader, device)
 
-    def fit(self, model):
-        train_loader = self._ddl(DataLoader(self.trainset,
-                                            self.config.train.batch_size,
-                                            shuffle=True),
-                                 self.config.device)
-        val_loader = self._ddl(DataLoader(self.valset,
-                                          self.config.validation.batch_size,
-                                          shuffle=False),
-                               self.config.device)
+    def fit(self, model, epochs):
 
         optimizer = getattr(torch.optim, self.config.optimizer.name)(
             model.parameters(), **self.config.optimizer.kwargs)
         criterion = getattr(torch.nn, self.config.criterion.name)()
 
         highest_val_score = float('-inf')
-        for epoch in range(self.config.train.epochs):
-            self._train(model, train_loader, optimizer, criterion)
-            val_loss, val_accuracy = self._eval(model, val_loader, criterion)
+        for epoch in range(epochs):
+            self._train(model, self.train_loader, optimizer, criterion)
+            val_loss, val_accuracy = self._eval(model, self.validation_loader,
+                                                criterion)
             highest_val_score = max(highest_val_score, val_accuracy)
             logging.info(
                 f"Epoch {epoch + 1}/{self.config.train.epochs}: Validation "
