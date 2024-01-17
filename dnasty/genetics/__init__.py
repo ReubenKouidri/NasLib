@@ -9,6 +9,16 @@ from .genes import (
     FlattenGene
 )
 
+from .components import (
+    LinearBlock,
+    ConvBlock2d,
+    Flatten,
+    ChannelPool,
+    SpatialAttention,
+    ChannelAttention,
+    CBAM
+)
+
 from .genome import Genome
 
 __all__ = [
@@ -19,5 +29,12 @@ __all__ = [
     "ChannelAttentionGene",
     "CBAMGene",
     "Genome",
-    "FlattenGene"
+    "FlattenGene",
+    "LinearBlock",
+    "ConvBlock2d",
+    "Flatten",
+    "ChannelPool",
+    "SpatialAttention",
+    "ChannelAttention",
+    "CBAM"
 ]
