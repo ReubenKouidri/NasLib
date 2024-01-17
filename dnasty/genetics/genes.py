@@ -9,7 +9,7 @@ import warnings
 import copy
 from typing import Any
 import torch.nn as nn
-import components as components
+from dnasty.genetics import components
 from dnasty.my_utils.types import size_2_opt_t, size_2_t
 
 _allowed_activations = nn.modules.activation.__all__
