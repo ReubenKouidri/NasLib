@@ -1,7 +1,6 @@
 import unittest
 import torch
-
-from dnasty.components import ChannelPool
+from dnasty.genetics import ChannelPool
 
 
 class TestChannelPool(unittest.TestCase):

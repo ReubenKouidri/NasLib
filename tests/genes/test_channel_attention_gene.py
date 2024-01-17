@@ -2,8 +2,7 @@ import unittest
 import random
 import torch
 import copy
-from dnasty.genetics import ChannelAttentionGene
-from dnasty.components import ChannelAttention
+from dnasty.genetics import ChannelAttentionGene, ChannelAttention
 
 
 class TestChannelAttentionGene(unittest.TestCase):

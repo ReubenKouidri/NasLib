@@ -1,7 +1,6 @@
 import torch
-
-from dnasty.components import Flatten
 import unittest
+from dnasty.genetics import Flatten
 
 
 class TestSpatialAttentionGene(unittest.TestCase):

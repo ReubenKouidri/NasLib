@@ -1,9 +1,8 @@
 import torch
 from torch import nn
 import copy
-
-from dnasty.genetics import ConvBlock2dGene
 import unittest
+from dnasty.genetics import ConvBlock2dGene
 
 
 class TestConvBlockGene(unittest.TestCase):

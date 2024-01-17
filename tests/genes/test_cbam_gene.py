@@ -2,8 +2,7 @@ import unittest
 import torch
 import copy
 from dnasty.genetics import ChannelAttentionGene, SpatialAttentionGene
-from dnasty.genetics import CBAMGene
-from dnasty.components import CBAM
+from dnasty.genetics import CBAMGene, CBAM
 
 
 class TestCBAMGene(unittest.TestCase):
