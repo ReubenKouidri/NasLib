@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import os
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
@@ -8,7 +10,8 @@ from dnasty.my_utils import load_2d_dataset, get_num_correct
 from dnasty.my_utils.config import Config
 
 logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    datefmt='%d-%m-%Y %H:%M:%S')
 
 
 def _to_device(data, device):
@@ -36,22 +39,22 @@ class Trainer:
                  config: Config,
                  checkpoint_dir: str = 'checkpoints',
                  ) -> None:
-        self.config = config
         self.checkpoint_dir = checkpoint_dir
-        self.trainset, self.valset = self._load_data(config.data.data_path,
-                                                     config.data.reference_path)
-        self.train_loader = self._ddl(DataLoader(self.trainset,
-                                                 self.config.train.batch_size,
-                                                 shuffle=True),
-                                      self.config.device)
+        self.trainset, self.valset = self._load_data(config.data_path,
+                                                     config.reference_path)
+        self.train_loader = self._ddl(
+            DataLoader(self.trainset, config.train.batch_size, shuffle=True),
+            config.device
+        )
         self.validation_loader = self._ddl(
-            DataLoader(self.valset,
-                       self.config.validation.batch_size,
-                       shuffle=False),
-            self.config.device)
+            DataLoader(self.valset, shuffle=False),
+            config.device
+        )
+        self.train_cfg = config.train
+        self.eval_cfg = config.eval
 
     @staticmethod
-    def _load_data(data_path, ref_path, train_pct: float = 0.8):
+    def _load_data(data_path, ref_path, train_pct: float = 0.6):
         dataset = load_2d_dataset(data_path, ref_path)
         total_size = len(dataset)
         train_size = int(total_size * train_pct)
@@ -67,11 +70,11 @@ class Trainer:
                       optimizer: torch.optim.Optimizer | None,
                       criterion: nn.Module
                       ) -> tuple[float, float]:
-        model.train() if mode == "train" else model.validate()
+        model.train() if mode == "train" else model.eval()
         total_loss, correct = 0.0, 0
         for imgs, tgts in dataloader:
-            imgs = imgs.to(self.config.device, non_blocking=True)
-            tgts = tgts.to(self.config.device, non_blocking=True)
+            imgs = imgs.to(self.train_cfg.device, non_blocking=True)
+            tgts = tgts.to(self.train_cfg.device, non_blocking=True)
             preds = model(imgs)
             loss = criterion(preds, tgts)
             if optimizer is not None:
@@ -81,7 +84,7 @@ class Trainer:
             correct += get_num_correct(preds, tgts)
             total_loss += loss.item()
 
-        num_samples = len(dataloader.dataset)
+        num_samples = len(dataloader)
         return total_loss / num_samples, correct / num_samples
 
     def _train(self, model, trainloader, optimizer, criterion):
@@ -98,9 +101,9 @@ class Trainer:
 
     def fit(self, model, epochs):
 
-        optimizer = getattr(torch.optim, self.config.optimizer.name)(
-            model.parameters(), **self.config.optimizer.kwargs)
-        criterion = getattr(torch.nn, self.config.criterion.name)()
+        optimizer = torch.optim.Adam(model.parameters(),
+                                     lr=self.train_cfg.lr)
+        criterion = nn.CrossEntropyLoss()
 
         highest_val_score = float('-inf')
         for epoch in range(epochs):
@@ -109,8 +112,8 @@ class Trainer:
                                                 criterion)
             highest_val_score = max(highest_val_score, val_accuracy)
             logging.info(
-                f"Epoch {epoch + 1}/{self.config.train.epochs}: Validation "
-                f"Loss = {val_loss:.4f}, Validation Accuracy = "
-                f"{val_accuracy:.4f}")
+                f"Epoch {epoch + 1}/{epochs}: Validation Loss = "
+                f"{val_loss:.2f}, Validation Accuracy = "
+                f"{val_accuracy:.2f}")
 
         return highest_val_score

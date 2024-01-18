@@ -1,4 +1,4 @@
-from dnasty.components import ConvBlock2d, CBAM, LinearBlock, Flatten
+from dnasty.genetics import ConvBlock2d, CBAM, LinearBlock, Flatten
 import torch.nn as nn
 from collections import OrderedDict
 
