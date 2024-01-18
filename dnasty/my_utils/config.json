@@ -1,33 +1,38 @@
 {
-  "train": {
-    "criterion": "CrossEntropyLoss",
-    "epochs": "10",
-    "batch_size": "20",
-    "shuffle": "True",
-    "nesterov": "True",
-    "momentum": "0.9",
-    "lr": "0.0005",
-    "device": "cpu"
-  },
-  "eval": {
-    "batch_size": "1",
-    "workers": "1",
-    "device": "cpu"
-  },
-  "data": {
-    "data_path": "datasets/cpsc_data/test100",
-    "reference_path": "datasets/cpsc_data/reference300.csv"
-  },
   "nas": {
+    "train": {
+      "criterion": "CrossEntropyLoss",
+      "epochs": "10",
+      "batch_size": "20",
+      "shuffle": "True",
+      "nesterov": "True",
+      "momentum": "0.9",
+      "lr": "0.0005",
+      "device": "cpu"
+    },
+    "eval": {
+      "batch_size": "1",
+      "workers": "1",
+      "device": "cpu"
+    },
+    "data_path": "/Users/hamidkouidri/Documents/Reuben/Projects/Python/NasLib/datasets/cpsc_data/test100",
+    "reference_path": "/Users/hamidkouidri/Documents/Reuben/Projects/Python/NasLib/datasets/cpsc_data/reference300.csv",
     "population_size": "5",
-    "evolution_strategy": "Random",
-    "crossover_method": "None",
-    "mutation_method": "None",
     "generations": "1",
-    "train_epochs": "40",
-    "default_conv_ker": "10",
-    "default_mpk_size": "3",
-    "default_act": "ReLU",
+    "search_strategy": "random",
+    "perf_metric": "val_acc",
+    "estimator": {
+      "early_stopping": {
+        "fidelity": "1"
+      }
+    },
+    "search_space": {
+      "cbam": {
+        "cells": "2",
+        "conv": "2",
+        "linear": "2"
+      }
+    },
     "search_order": [
       "kernel_size",
       "out_channels",
