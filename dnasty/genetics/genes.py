@@ -9,6 +9,7 @@ import warnings
 import copy
 from typing import Any
 import torch.nn as nn
+import dnasty.genetics as genetics
 from dnasty.genetics import components
 from dnasty.my_utils.types import size_2_opt_t, size_2_t
 
@@ -80,6 +81,28 @@ class GeneBase(abc.ABC):
         # bypass __setattr__ of GeneBase
         super().__setattr__("exons", exons)
         super().__setattr__("is_active", True)
+
+    @classmethod
+    def from_random(cls):
+        """
+        Creates an instance of the gene with randomly selected parameters
+        from the defined feature ranges.
+        """
+        init_signature = inspect.signature(cls.__init__)
+        init_params = init_signature.parameters
+
+        random_args = {}
+        for param_name, param in init_params.items():
+            if param_name == 'self':
+                continue
+
+            if param_name in cls._feature_ranges:
+                random_args[param_name] = random.choice(
+                    list(cls._feature_ranges[param_name]))
+            elif param.annotation in genetics.__all__:
+                random_args[param_name] = eval(param.annotation).from_random()
+
+        return cls(**random_args)
 
     def to_module(self) -> nn.Module:
         """
@@ -163,15 +186,38 @@ class GeneBase(abc.ABC):
             raise AttributeError(
                 f"No attribute {name} in {type(self).__name__}")
 
-    def __setattr__(self, key, value) -> None:
-        # Check if the attribute is a defined class attribute
+    def __setattr__(self, key, value, bypass=False) -> None:
+        """
+        Sets the value of an attribute.
+
+        Args:
+            key (str): The name of the attribute.
+            value (Any): The value to be set.
+            bypass (bool, optional): Whether to bypass validation. Defaults
+            to False and only True when setting the in_features of the first
+            linear layer after convolution, as this can vary significantly.
+
+        Returns:
+            None
+
+        Raises:
+            KeyError: If the attribute is not found in the instance attributes
+            or the exons dictionary.
+
+        Note:
+            - If the attribute is a defined class attribute, it is set using
+            the superclass's __setattr__ method.
+            - If the attribute is in the _feature_ranges dictionary,
+            - If the attribute is not found in the exons dictionary,
+              a KeyError is raised.
+        """
         cls = type(self)
         if hasattr(cls, key):
             super().__setattr__(key, value)
             return
 
         # Validate and set the attribute if it's in the _feature_ranges
-        if key in self._feature_ranges:
+        if key in self._feature_ranges and not bypass:
             allowed_range = self._feature_ranges[key]
             value = validate_feature(key, value, allowed_range)
 
@@ -203,6 +249,9 @@ class GeneBase(abc.ABC):
     def __len__(self) -> int:
         return len(self.exons)
 
+    def __repr__(self):
+        return f"{type(self).__name__}({self.exons})"
+
 
 class LinearBlockGene(GeneBase):
     """
@@ -228,7 +277,10 @@ class LinearBlockGene(GeneBase):
         ValueError: If the provided activation function is not allowed.
         TypeError: If the dropout argument is not a boolean.
     """
-    allowed_init_features = set(range(9, 10_000))
+    _feature_ranges = {
+        "in_features": range(9, 10_001),
+        "out_features": range(9, 10_000)
+    }
 
     def __init__(self,
                  in_features: int,
@@ -245,10 +297,10 @@ class LinearBlockGene(GeneBase):
 
         in_features = validate_feature("in_features",
                                        in_features,
-                                       LinearBlockGene.allowed_init_features)
+                                       self._feature_ranges["in_features"])
         out_features = validate_feature("out_features",
                                         out_features,
-                                        LinearBlockGene.allowed_init_features)
+                                        self._feature_ranges["out_features"])
         super().__init__({
             "in_features": in_features,
             "out_features": out_features,
@@ -262,7 +314,7 @@ class LinearBlockGene(GeneBase):
         self.out_features = validate_feature(
             "out_features",
             self.out_features,
-            LinearBlockGene.allowed_init_features)
+            self._feature_ranges["out_features"])
 
 
 class ConvBlock2dGene(GeneBase):
@@ -345,10 +397,15 @@ class MaxPool2dGene(GeneBase):
         MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1,
          ceil_mode=False)
     """
+    @classmethod
+    def from_random(cls):
+        gene = super().from_random()
+        gene.stride = gene.kernel_size
+        return gene
 
     _feature_ranges = {
-        "kernel_size": set(range(2, 10)),
-        "stride": set(range(2, 10))
+        "kernel_size": set(range(2, 5)),
+        "stride": set(range(2, 5))
     }
 
     def __init__(self,
