@@ -50,6 +50,10 @@ class TestCBAMGene(unittest.TestCase):
                          "Attributes of the deep copied object do not match "
                          "the original.")
 
+    def test_from_random(self):
+        cbam_gene = CBAMGene.from_random()
+        self.assertIsInstance(cbam_gene, CBAMGene)
+
 
 if __name__ == '__main__':
     unittest.main()

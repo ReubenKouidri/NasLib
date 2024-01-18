@@ -11,6 +11,12 @@ class TestLinearGene(unittest.TestCase):
                                     activation='ReLU',
                                     dropout=True)
 
+    def _test_within_ranges(self, gene):
+        self.assertIn(gene.in_features,
+                      LinearBlockGene._feature_ranges["in_features"])
+        self.assertIn(gene.out_features,
+                      LinearBlockGene._feature_ranges["out_features"])
+
     def test_init(self):
         self.assertIsInstance(self.gene, LinearBlockGene)
         self.assertEqual(self.gene.in_features, 10)
@@ -37,8 +43,7 @@ class TestLinearGene(unittest.TestCase):
     def test_mutate(self):
         pre_drop = self.gene.dropout
         self.gene.mutate()
-        self.assertIn(self.gene.out_features, LinearBlockGene.allowed_init_features)
-        self.assertIn(self.gene.in_features, LinearBlockGene.allowed_init_features)
+        self._test_within_ranges(self.gene)
         self.assertNotEqual(self.gene.dropout, pre_drop)
 
     def test_len(self):
@@ -54,6 +59,11 @@ class TestLinearGene(unittest.TestCase):
         self.assertEqual(copied_gene.__dict__, self.gene.__dict__,
                          "Attributes of the deep copied object do not match "
                          "the original.")
+
+    def test_from_random(self):
+        gene = LinearBlockGene.from_random()
+        self.assertIsInstance(gene, LinearBlockGene)
+        self._test_within_ranges(gene)
 
 
 if __name__ == "__main__":
