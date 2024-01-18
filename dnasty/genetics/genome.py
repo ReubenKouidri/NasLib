@@ -25,12 +25,16 @@ class Genome:
     __num_classes = 9
     image_dims = 128
 
-    def __init__(self, genes: OrderedDict):
-        self.fitness = 0.0
+    def __init__(self, genes: OrderedDict = None):
         if not isinstance(genes, OrderedDict):
             raise TypeError(
                 f"Genes must be an OrderedDict, not {type(genes).__name__}.")
-        self.genes = genes
+
+        self.genes = genes if genes else OrderedDict()
+        self.fitness = 0.0
+
+    def append(self, gene: genetics.GeneBase) -> None:
+        self.genes.update({type(gene).__name__: gene})
 
     @classmethod
     def from_sequence(cls, genes: abc.MutableSequence) -> Genome:
@@ -96,9 +100,10 @@ class Genome:
 
             if isinstance(next_gene, genetics.LinearBlockGene):
                 if first_linear:
-                    next_gene.in_features = (
-                            self.outdims ** 2 *
-                            prev_significant_gene.out_channels)
+                    next_gene.__setattr__(
+                        "in_features",
+                        self.outdims ** 2 * prev_significant_gene.out_channels,
+                        True)
                     first_linear = False
                 else:
                     next_gene.in_features = prev_significant_gene.out_features
@@ -107,7 +112,7 @@ class Genome:
         # Special handling for the last
         last_gene = next(reversed(self.genes.values()))
         if isinstance(last_gene, genetics.LinearBlockGene):
-            last_gene.activation = nn.Softmax(dim=1)
+            last_gene.activation = "Softmax"
             last_gene.dropout = False
             last_gene.out_features = self.__num_classes
 
@@ -176,3 +181,10 @@ class Genome:
 
     def __gt__(self, other) -> bool:
         return self.fitness > other.fitness
+
+    def __repr__(self):
+        gene_summary = ',\n'.join(
+            [f"  {name}: {gene.exons}" for name, gene in self.genes.items()])
+        return (f"Genome(\n"
+                f"{gene_summary},\n"
+                f"  Fitness: {self.fitness}\n)")
