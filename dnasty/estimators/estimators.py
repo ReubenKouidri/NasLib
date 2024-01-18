@@ -11,8 +11,8 @@ class Estimator(abc.ABC):
 
 
 class EarlyStoppingEstimator(Estimator):
-    def __init__(self, fidelity, config):
-        self.fidelity = fidelity
+    def __init__(self, config):
+        self.fidelity = config.estimator.early_stopping.fidelity
         self.trainer = Trainer(config)
 
     def fit(self, genome: Genome):
