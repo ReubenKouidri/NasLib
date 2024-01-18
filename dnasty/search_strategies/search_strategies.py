@@ -1,100 +1,98 @@
 import abc
-import torch
-from dnasty.genetics import Genome
+import copy
+import random
+from dnasty.genetics import *
+from dnasty.estimators import EarlyStoppingEstimator
+from dnasty.my_utils import Config
 
 
-class OptimiserBase(abc.ABC):
-    def step(self, search_space, config):
-        pass
+class SearchStrategyBase(abc.ABC):
+
+    def generate_population(self, config) -> list[Genome]:
+        raise NotImplementedError(
+            "Subclasses must implement generate_population()"
+        )
+
+    def fit(self):
+        raise NotImplementedError(
+            "Subclasses must implement fit()"
+        )
 
 
-class RandomSearch(OptimiserBase):
-    """
-    Random search in DARTS is done by randomly sampling `k` architectures
-    and training them for `n` epochs, then selecting the best architecture.
-    DARTS paper: `k=24` and `n=100` for cifar-10.
-    """
+class RandomSearch(SearchStrategyBase):
 
     def __init__(self,
-                 config,
-                 population: set[Genome],
-                 perf_metric="val_acc"):
+                 config: Config):
         """
         Initialize a random search optimizer.
 
         Args:
-            config: Config file
+            config: total Config object
         """
         super(RandomSearch, self).__init__()
+        self.perf_metric = config.perf_metric
+        self.population_size = config.population_size
+        self.population: list[Genome] = self._generate_population(
+            config.search_space.cbam)
+        self.sampled: set[Genome] = set()
+        self.history = []
+        self.estimator = EarlyStoppingEstimator(config=config)
+        self.generations = config.generations
 
-        self.performance_metric = perf_metric
-        self.dataset = config.dataset
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")
+    def fit(self):
+        for generation in range(self.generations):
+            self._step()
 
-        self.sampled_archs = []
-        self.history = {}
-
-    def new_epoch(self, epoch: int):
+    def _step(self):
         """
         Sample a new architecture to train.
         """
-        model = torch.nn.Module()
-        model.arch = self.search_space.clone()
-        model.arch.sample_random_architecture(dataset_api=self.dataset_api)
-        model.accuracy = model.arch.query(
-            self.performance_metric,
-            self.dataset,
-        )
+        population_best = []
+        for genome in self.population:
+            genome.fitness = self.estimator.fit(genome)
+            self.sampled.add(copy.deepcopy(genome))
+            population_best.append(copy.deepcopy(genome))
 
-        self.sampled_archs.append(model)
-        self._update_history(model)
+        self.history.append(
+            copy.deepcopy(max(population_best, key=lambda x: x.fitness)))
 
-    def _update_history(self, child):
-        if len(self.history) < 100:
-            self.history.append(child)
-        else:
-            for i, p in enumerate(self.history):
-                if child.accuracy > p.accuracy:
-                    self.history[i] = child
-                    break
-
-    def get_final_architecture(self):
+    def _generate_population(self, cfg: Config) -> list[Genome]:
         """
-        Returns the sampled architecture with the lowest validation error.
+        Randomly initialise the population from the search space
+        cfg is the config for the search space e.g. cfg = nas.search_space.cbam
         """
-        return max(self.sampled_archs, key=lambda x: x.accuracy).arch
+        population = []
+        while len(population) < self.population_size:
+            genes = []
+            num_cbam_genes = random.randint(1, cfg.cells)
+            for _ in range(num_cbam_genes):
+                cbam_gene = CBAMGene.from_random()
+                num_conv = random.randint(1, cfg.conv)
+                genes.extend(
+                    ConvBlock2dGene.from_random() for _ in range(num_conv))
+                genes.append(MaxPool2dGene.from_random())
+                genes.append(cbam_gene)
 
-    def train_statistics(self, report_incumbent: bool = True):
+            genes.append(FlattenGene())
+            genes.extend(
+                LinearBlockGene.from_random() for _ in range(cfg.linear))
+            genome = Genome.from_sequence(genes)
+            print(genome)
 
-        if report_incumbent:
-            best_arch = self.get_final_architecture()
-        else:
-            best_arch = self.sampled_archs[-1].arch
+            # TODO: lazy way to constrain num_params - needs investigation
+            if 2 < genome.outdims < 50:
+                population.append(Genome.from_sequence(genes))
 
-        return (
-            best_arch.query(
-                Metric.TRAIN_ACCURACY, self.dataset,
-                dataset_api=self.dataset_api
-            ),
-            best_arch.query(
-                Metric.VAL_ACCURACY, self.dataset, dataset_api=self.dataset_api
-            ),
-            best_arch.query(
-                Metric.TEST_ACCURACY, self.dataset, dataset_api=self.dataset_api
-            ),
-            best_arch.query(
-                Metric.TRAIN_TIME, self.dataset, dataset_api=self.dataset_api
-            ),
-        )
+        return population
 
-    def test_statistics(self):
-        best_arch = self.get_final_architecture()
-        return best_arch.query(Metric.RAW, self.dataset,
-                               dataset_api=self.dataset_api)
+    @property
+    def generation_best(self):
+        """Returns best genome in the current generation"""
+        return max(self.population, key=lambda x: x.fitness)
 
-    def get_op_optimizer(self):
-        raise NotImplementedError
-
-    def get_checkpointables(self):
-        return {"model": self.history}
+    @property
+    def fittest_genome(self):
+        """Returns the sampled architecture with the lowest validation error"""
+        if len(self.history) == 0:
+            return None
+        return max(self.history, key=lambda x: x.fitness)

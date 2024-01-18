@@ -1,1 +1,1 @@
-from .optimisers import Optimiser
+from .search_strategies import RandomSearch
