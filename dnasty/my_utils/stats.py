@@ -8,43 +8,42 @@ class StatisticsReporter:
         self.most_fit_genomes = []
         self.generation_statistics = []
 
-    def best_genomes(self, n):
+    def best_genomes(self, n: int):
         """Returns the n fittest genomes ever seen."""
-        def key(g):
-            return g.fitness
+        return sorted(self.most_fit_genomes, key=lambda g: g.fitness,
+                      reverse=True)[:n]
 
-        return sorted(self.most_fit_genomes, key=key, reverse=True)[:n]
-
-    def best_genome(self):
-        """Returns the fittest genome ever seen"""
+    @property
+    def max_fitness(self):
+        """Returns the fitness score for the best genome"""
         return self.best_genomes(1)[0]
 
-    def highest_score(self):
-        """Returns the fitness score for the best genome"""
-        return self.best_genome().fitness
+    @property
+    def min_fitness(self):
+        """Get the per-generation minimum fitness"""
+        return self._get_fitness_stat("min")
 
-    def get_fitness_stat(self, func):
-        df = pd.DataFrame().from_dict(self.generation_statistics)
-        stats = list(df[f'{func}_fitness'])
-        return stats
-
-    def get_fitness_mins(self):
-        return self.get_fitness_stat("min")
-
-    def get_fitness_means(self):
+    @property
+    def mean_fitness(self):
         """Get the per-generation mean fitness"""
-        return self.get_fitness_stat("mean")
+        return self._get_fitness_stat("mean")
+
+    def _get_fitness_stat(self, stat: str):
+        """Generic method to get fitness statistics"""
+        df = pd.DataFrame(self.generation_statistics)
+        return list(df[f'{stat}_fitness'])
 
     def get_fitness_stds(self):
         """Get the per-generation standard deviation of the fitness"""
-        return self.get_fitness_stat("std")
+        return self._get_fitness_stat("std")
 
     def get_fitness_vars(self):
-        return self.get_fitness_stat("var")
+        """Get the per-generation variance of the fitness"""
+        return self._get_fitness_stat("var")
 
     def get_fitness_meds(self):
         """Get the per-generation median fitness"""
-        return self.get_fitness_stat("med")
+        return self._get_fitness_stat("med")
 
     def save(self, crossover_mode='mean', directory='/content/gdrive/MyDrive'):
         self.save_genome_fitness(directory=directory)
@@ -58,7 +57,7 @@ class StatisticsReporter:
             w = csv.writer(f, delimiter=delimiter)
 
             best_fitness = [g.fitness for g in self.most_fit_genomes]
-            avg_fitness = self.get_fitness_means()
+            avg_fitness = self.mean_fitness()
             for best, avg in zip(best_fitness, avg_fitness):
                 w.writerow([best, avg])
 
