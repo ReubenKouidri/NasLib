@@ -17,8 +17,8 @@
     },
     "data_path": "/Users/hamidkouidri/Documents/Reuben/Projects/Python/NasLib/datasets/cpsc_data/test100",
     "reference_path": "/Users/hamidkouidri/Documents/Reuben/Projects/Python/NasLib/datasets/cpsc_data/reference300.csv",
-    "population_size": "5",
-    "generations": "1",
+    "population_size": "10",
+    "generations": "10",
     "search_strategy": "random",
     "perf_metric": "val_acc",
     "estimator": {
@@ -30,7 +30,10 @@
       "cbam": {
         "cells": "2",
         "conv": "2",
-        "linear": "2"
+        "linear": "2",
+        "max_num_params": "1_000_000",
+        "max_outdims": "25",
+        "min_outdims": "5"
       }
     },
     "search_order": [
@@ -38,6 +41,7 @@
       "out_channels",
       "activation"
     ],
-    "device": "cpu"
+    "device": "cpu",
+    "num_classes": "9"
   }
 }
