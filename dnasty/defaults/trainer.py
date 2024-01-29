@@ -1,17 +1,10 @@
 from __future__ import annotations
-
-import logging
-import os
-
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from dnasty.my_utils import load_2d_dataset, get_num_correct
 from dnasty.my_utils.config import Config
-
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
-                    datefmt='%d-%m-%Y %H:%M:%S')
+from dnasty.my_utils.clock import clock
 
 
 def _to_device(data, device):
@@ -87,6 +80,7 @@ class Trainer:
         num_samples = len(dataloader)
         return total_loss / num_samples, correct / num_samples
 
+    # @clock
     def _train(self, model, trainloader, optimizer, criterion):
         return self._forward_pass(model, "train", trainloader, optimizer,
                                   criterion)
@@ -100,20 +94,14 @@ class Trainer:
         return DeviceDataLoader(dataloader, device)
 
     def fit(self, model, epochs):
-
         optimizer = torch.optim.Adam(model.parameters(),
                                      lr=self.train_cfg.lr)
         criterion = nn.CrossEntropyLoss()
-
-        highest_val_score = float('-inf')
+        highest_val_acc = float('-inf')
         for epoch in range(epochs):
             self._train(model, self.train_loader, optimizer, criterion)
             val_loss, val_accuracy = self._eval(model, self.validation_loader,
                                                 criterion)
-            highest_val_score = max(highest_val_score, val_accuracy)
-            logging.info(
-                f"Epoch {epoch + 1}/{epochs}: Validation Loss = "
-                f"{val_loss:.2f}, Validation Accuracy = "
-                f"{val_accuracy:.2f}")
+            highest_val_acc = max(highest_val_acc, val_accuracy)
 
-        return highest_val_score
+        return highest_val_acc
