@@ -12,6 +12,7 @@ import torch.nn as nn
 import dnasty.genetics as genetics
 from dnasty.genetics import components
 from dnasty.my_utils.types import size_2_opt_t, size_2_t
+from dnasty.my_utils import Config
 
 _allowed_activations = nn.modules.activation.__all__
 
@@ -45,6 +46,21 @@ def validate_feature(name: str, value: Any,
         return [validate(v, allowed_range) for v in value]
     else:
         raise TypeError(f"{type(value).__name__} not supported.")
+
+
+def create_gene_sequence(cfg: Config) -> list:
+    genes = []
+    for _ in range(random.randint(1, cfg.cells)):
+        genes.extend(create_conv_block_sequence(cfg))
+        genes.append(CBAMGene.from_random())
+    genes.append(FlattenGene())
+    genes.extend(LinearBlockGene.from_random() for _ in range(cfg.linear))
+    return genes
+
+
+def create_conv_block_sequence(cfg: Config) -> list:
+    return [ConvBlock2dGene.from_random() for _ in
+            range(random.randint(1, cfg.conv))] + [MaxPool2dGene.from_random()]
 
 
 class GeneBase(abc.ABC):
@@ -279,8 +295,17 @@ class LinearBlockGene(GeneBase):
     """
     _feature_ranges = {
         "in_features": range(9, 10_001),
-        "out_features": range(9, 10_000)
+        "out_features": range(9, 10_001)
     }
+
+    @classmethod
+    def from_random(cls):
+        gene = super().from_random()
+        gene.out_features = random.randrange(
+            min(LinearBlockGene._feature_ranges["out_features"]),
+            gene.in_features)
+        gene.activation = "ReLU"  # Experiment later with random choice
+        return gene
 
     def __init__(self,
                  in_features: int,
@@ -316,6 +341,10 @@ class LinearBlockGene(GeneBase):
             self.out_features,
             self._feature_ranges["out_features"])
 
+    @property
+    def num_params(self):
+        return (self.in_features + 1) * self.out_features
+
 
 class ConvBlock2dGene(GeneBase):
     """
@@ -323,10 +352,8 @@ class ConvBlock2dGene(GeneBase):
         Conv2d -> Activation -> BatchNorm2d
 
     Attributes:
-        allowed_channels (set): Defines the allowed range for the number
-        of input and output channels.
-        allowed_kernel_size (set): Defines the allowed range for the
-        kernel size.
+        _feature_ranges (dict): Defines the allowed ranges for in_channels,
+                                out_channels and kernel_size.
 
     Args:
         in_channels (int): Number of channels in the input image.
@@ -369,13 +396,25 @@ class ConvBlock2dGene(GeneBase):
                           "activation": activation,
                           "batch_norm": batch_norm})
 
+    @property
+    def num_params(self):
+        """
+        Num params = num channels * num channels in previous layer * w * h
+        where w, h = width, height of kernel
+        """
+        if isinstance(self.kernel_size, int):
+            return self.out_channels * (1 + self.in_channels *
+                                        self.kernel_size ** 2)
+        return self.out_channels * (1 + self.in_channels * (
+                self.kernel_size[0] * self.kernel_size[1]))
+
 
 class MaxPool2dGene(GeneBase):
     """
     Gene encoding a standard torch.nn.max_pool2d layer.
 
     Attributes:
-        allowed_values (set): Defines the allowed range for the kernel size
+        _feature_ranges (dict): Defines the allowed range for the kernel size
         and stride values.
 
     Args:
@@ -397,6 +436,7 @@ class MaxPool2dGene(GeneBase):
         MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1,
          ceil_mode=False)
     """
+
     @classmethod
     def from_random(cls):
         gene = super().from_random()
@@ -448,13 +488,20 @@ class SpatialAttentionGene(GeneBase):
         dk = 1 if random.random() < 0.5 else -1
         self.kernel_size += dk
 
+    @property
+    def num_params(self):
+        if isinstance(self.kernel_size, int):
+            return self.kernel_size ** 2 + 1
+        return self.kernel_size[0] * self.kernel_size[1] + 1
+
 
 class ChannelAttentionGene(GeneBase):
     """
     Gene encoding a channel attention module: https://arxiv.org/abs/1807.06521
 
     Attributes:
-        allowed_values (set): Defines the allowed range for the squeeze
+        _feature_ranges (dict): Defines the allowed range for the
+        squeeze-excitation ratio
 
     Args:
         se_ratio: the squeeze-excitation ratio.
@@ -473,6 +520,12 @@ class ChannelAttentionGene(GeneBase):
     def mutate(self) -> None:
         dr = 1 if random.random() < 0.5 else -1
         self.se_ratio += dr
+
+    @property
+    def num_params(self):
+        if self.in_channels // self.se_ratio == 0:
+            return 2 * self.in_channels
+        return 2 * self.in_channels * (self.in_channels // self.se_ratio)
 
 
 class CBAMGene(GeneBase):
@@ -501,7 +554,8 @@ class CBAMGene(GeneBase):
                  channel_gene: ChannelAttentionGene,
                  spatial_gene: SpatialAttentionGene):
         """
-        Bypass BaseGene logic. Sub-genes are already validated via __setattr__
+        Bypass redundant validation call to GeneBase as sub-genes are already
+        validated.
         """
         object.__setattr__(self, "channel_gene", channel_gene)
         object.__setattr__(self, "spatial_gene", spatial_gene)
@@ -512,6 +566,15 @@ class CBAMGene(GeneBase):
     def mutate(self, *args, **kwargs) -> None:
         self.channel_gene.mutate(*args, **kwargs)
         self.spatial_gene.mutate(*args, **kwargs)
+
+    def sync(self):
+        self.channel_gene.in_channels = self.in_channels
+        self.channel_gene.se_ratio = self.se_ratio
+        self.spatial_gene.kernel_size = self.kernel_size
+
+    @property
+    def num_params(self):
+        return self.channel_gene.num_params + self.spatial_gene.num_params
 
 
 class FlattenGene(GeneBase):
