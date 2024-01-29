@@ -6,7 +6,8 @@ from .genes import (
     SpatialAttentionGene,
     ChannelAttentionGene,
     CBAMGene,
-    FlattenGene
+    FlattenGene,
+    create_gene_sequence
 )
 
 from .components import (
@@ -19,7 +20,10 @@ from .components import (
     CBAM
 )
 
-from .genome import Genome
+from .genome import (
+    Genome,
+    is_genome_valid
+)
 
 __all__ = [
     "LinearBlockGene",
@@ -36,5 +40,7 @@ __all__ = [
     "ChannelPool",
     "SpatialAttention",
     "ChannelAttention",
-    "CBAM"
+    "CBAM",
+    "is_genome_valid",
+    "create_gene_sequence"
 ]
