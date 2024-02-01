@@ -1,27 +1,19 @@
 # NasLib Project
 
 ### Overview
-NasLib is a refactored version of an MPhys project aimed at building
-Convolutional Neural Networks (CNNs) with integrated Convolutional Block Attention Modules (CBAM)
-for classifying cardiac arrhythmias across 9 classes. 
+NasLib is an evolutionary neural architecture search (ENAS) framework. It provides a template for encoding
+Modules as genes which can then be expressed and trained. Currently supports the following features:
 
 ### Search Space
-- <b>Cell-Based</b>: ResBlock with CBAM, a proven structure for this application.
-- <b>Improvements to Consider</b>:
-  - Minimize complexity, drawing inspiration from NEAT (NeuroEvolution of Augmenting Topologies).
-  - Integrate Vision Transformers (ViTs).
+- <b>Cell-Based</b>: ResBlock with CBAM, a proven structure for image classification (https://arxiv.org/abs/1807.06521).
 
 ### Search Strategy
-- <b>Current Strategies</b>: evolutionary approach with 4 sexual crossover operators, 1 mutation operator, and 
+- <b>Current Strategies</b>:
+  - evolutionary approach with 4 sexual crossover operators, 1 mutation operator, and 
     1 asexual reproduction operator (to search the local parameter space).
-- <b>Future Modifications</b>: 
-  - Speciation.
-  - Random search as a baseline.
+  - Random Search: used as a baseline for benchmarking other methods (https://www.automl.org/wp-content/uploads/NAS/NAS_checklist.pdf).
+  
+
   
 ### Evaluation Strategy
-- <b>Current Method</b>: early stopping after approximately 20 epochs, though this proves expensive and unreliable.
-- <b>Proposed Methods</b>:
-  - Implement early stopping triggered by gradient acceleration.
-  - Single layer optimization for increased speed.
-  - Sequential search (search for the best individual components independent of the rest).
-  - Integration of speedy performance predictors to expedite the evaluation process.
+- <b>Early Stopping Estimator</b>: low-fidelity approach - used to benchmark other methods to follow.
