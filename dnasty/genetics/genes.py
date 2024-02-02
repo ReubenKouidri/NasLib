@@ -320,9 +320,6 @@ class LinearBlockGene(GeneBase):
             raise TypeError(
                 f"dropout must be a boolean, not {type(dropout).__name__}.")
 
-        in_features = validate_feature("in_features",
-                                       in_features,
-                                       self._feature_ranges["in_features"])
         out_features = validate_feature("out_features",
                                         out_features,
                                         self._feature_ranges["out_features"])
@@ -468,8 +465,8 @@ class SpatialAttentionGene(GeneBase):
     Gene encoding a spatial attention module: https://arxiv.org/abs/1807.06521
 
     Attributes:
-        allowed_values (set): Defines the allowed range for the kernel size
-        of the spatial attention mechanism.
+        _feature_ranges (dict[set]): Defines the allowed range for the kernel
+                                     size of the spatial attention mechanism.
 
     Args:
         kernel_size (size_2_t): The size of the kernel to be used.
