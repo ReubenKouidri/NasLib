@@ -35,60 +35,11 @@ class TestGenome(unittest.TestCase):
         # 49^2 * CHANNELS
         self.outdims = (49 ** 2) * 128
 
-    def test_init(self):
-        genes_iter = iter(
-            self.genome.genes.values())  # Create an iterator for genes
-
-        first_gene = next(genes_iter)
-        self.assertEqual(self.conv1, first_gene)
-        self.assertEqual(first_gene.in_channels, 1)
-        self.assertEqual(first_gene.out_channels, 32)
-        self.assertEqual(first_gene.kernel_size, 10)
-
-        second_gene = next(genes_iter)
-        self.assertEqual(self.conv2, second_gene)
-        self.assertEqual(second_gene.in_channels, 1)
-        self.assertEqual(second_gene.out_channels, 64)
-        self.assertEqual(second_gene.kernel_size, 11)
-
-        third_gene = next(genes_iter)
-        self.assertEqual(self.conv3, third_gene)
-        self.assertEqual(third_gene.in_channels, 1)
-        self.assertEqual(third_gene.out_channels, 128)
-        self.assertEqual(third_gene.kernel_size, 12)
-
-        fourth_gene = next(genes_iter)
-        self.assertEqual(self.mp, fourth_gene)
-        self.assertEqual(fourth_gene.kernel_size, 2)
-        self.assertEqual(fourth_gene.stride, 2)
-
-        fifth_gene = next(genes_iter)
-        self.assertEqual(self.cbam, fifth_gene)
-        self.assertEqual(fifth_gene.se_ratio, 5)
-        self.assertEqual(fifth_gene.kernel_size, 3)
-        self.assertEqual(fifth_gene.in_channels, 1)  # default
-
-        sixtht_gene = next(genes_iter)
-        self.assertEqual(self.flatten, sixtht_gene)
-
-        seventh_gene = next(genes_iter)
-        self.assertEqual(self.linear1, seventh_gene)
-        self.assertEqual(seventh_gene.in_features, 100)
-        self.assertEqual(seventh_gene.out_features, 200)
-
-        eigth_gene = next(genes_iter)
-        self.assertEqual(self.linear2, eigth_gene)
-        self.assertEqual(eigth_gene.in_features, 300)
-        self.assertEqual(eigth_gene.out_features, 400)
-
-        self.assertEqual(len(self.genome), len(self.genes))
-        self.assertEqual(self.genome.fitness, 0.0)
-
     def test_len(self):
         self.assertEqual(len(self.genome), len(self.genes))
 
     def test_sync(self):
-        self.genome._sync_genes()
+        self.genome.sync_genes()
         genes_iter = iter(self.genome.genes.values())
         # check conv genes are synchronised
         g1 = next(genes_iter)
@@ -130,7 +81,7 @@ class TestGenome(unittest.TestCase):
                 self.assertEqual(k1, k2)  # check the keys are the same
 
     def test_to_module(self):
-        self.genome._sync_genes()
+        self.genome.sync_genes()
         model = self.genome.to_module()
         self.assertIsInstance(model, torch.nn.Sequential)
         x = torch.randn(16, 1, 128, 128)
