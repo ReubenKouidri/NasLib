@@ -1,5 +1,5 @@
 import abc
-from dnasty.genetics import Genome
+from dnasty.search_space.cbam import Genome
 from dnasty.defaults.trainer import Trainer
 
 

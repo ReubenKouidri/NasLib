@@ -1,7 +1,7 @@
 import abc
 import copy
 import logging
-from dnasty.genetics import *
+from dnasty.search_space.cbam import *
 from dnasty.estimators import EarlyStoppingEstimator
 from dnasty.my_utils import Config
 
