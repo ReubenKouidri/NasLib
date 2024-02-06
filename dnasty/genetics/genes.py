@@ -303,7 +303,7 @@ class LinearBlockGene(GeneBase):
         gene = super().from_random()
         gene.out_features = random.randrange(
             min(LinearBlockGene._feature_ranges["out_features"]),
-            gene.in_features)
+            gene.in_features + 1)
         gene.activation = "ReLU"  # Experiment later with random choice
         return gene
 
