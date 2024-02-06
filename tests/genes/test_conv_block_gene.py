@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import copy
 import unittest
-from dnasty.genetics import ConvBlock2dGene
+from dnasty.search_space.common import ConvBlock2dGene
 
 
 class TestConvBlockGene(unittest.TestCase):

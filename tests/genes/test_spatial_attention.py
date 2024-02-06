@@ -1,7 +1,7 @@
 import torch
 import copy
 import unittest
-from dnasty.genetics import SpatialAttentionGene
+from dnasty.search_space.cbam import SpatialAttentionGene
 
 
 class TestSpatialAttentionGene(unittest.TestCase):

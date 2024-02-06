@@ -2,7 +2,16 @@ import unittest
 import copy
 import torch
 
-from dnasty.genetics import *
+from dnasty.search_space.cbam import (
+    ConvBlock2dGene,
+    MaxPool2dGene,
+    FlattenGene,
+    LinearBlockGene,
+    CBAMGene,
+    ChannelAttentionGene,
+    SpatialAttentionGene,
+    Genome
+)
 
 
 class TestGenome(unittest.TestCase):

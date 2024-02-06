@@ -1,7 +1,7 @@
 import torch.nn as nn
 import unittest
 import copy
-from dnasty.genetics import LinearBlockGene
+from dnasty.search_space.common import LinearBlockGene
 
 
 class TestLinearGene(unittest.TestCase):

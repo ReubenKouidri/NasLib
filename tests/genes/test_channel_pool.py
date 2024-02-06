@@ -1,6 +1,6 @@
 import unittest
 import torch
-from dnasty.genetics import ChannelPool
+from dnasty.search_space.cbam import ChannelPool
 
 
 class TestChannelPool(unittest.TestCase):
