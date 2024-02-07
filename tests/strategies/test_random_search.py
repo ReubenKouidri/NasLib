@@ -2,30 +2,7 @@ import unittest
 from dnasty.my_utils.config import Config
 from dnasty.search_strategies import RandomSearch
 import dnasty
-import random
-
-
-class MockEarlyStoppingEstimator:
-    def __init__(self, config):
-        self.fidelity = 1
-        self.trainer = MockTrainer(config)
-
-    def fit(self, genome):
-        return self.trainer.fit(genome.to_module(), self.fidelity)  # fitness
-
-
-class MockTrainer:
-    def __init__(self, config: Config):
-        self.config = config
-
-    def fit(self, model, epochs):
-        return self._simulate_forward_pass()
-
-    @staticmethod
-    def _simulate_forward_pass():
-        """Simulate a forward pass with random metrics for testing."""
-        simulated_accuracy = random.uniform(0.5, 1.0)  # Example accuracy range
-        return simulated_accuracy
+from mock_estimator import MockEarlyStoppingEstimator
 
 
 class TestRandomSearch(unittest.TestCase):
