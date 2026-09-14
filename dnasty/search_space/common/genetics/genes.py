@@ -292,6 +292,13 @@ class GeneBase(abc.ABC):
     def __repr__(self):
         return f"{type(self).__name__}({self.exons})"
 
+    @property
+    @abc.abstractmethod
+    def num_params(self):
+        raise NotImplementedError(
+            "Subclasses must implement num_params."
+        )
+
 
 class LinearBlockGene(GeneBase):
     """
@@ -363,7 +370,7 @@ class LinearBlockGene(GeneBase):
             self._feature_ranges["out_features"])
 
     @property
-    def num_params(self):
+    def num_params(self) -> int:
         return (self.in_features + 1) * self.out_features
 
 
@@ -418,7 +425,7 @@ class ConvBlock2dGene(GeneBase):
                           "batch_norm": batch_norm})
 
     @property
-    def num_params(self):
+    def num_params(self) -> int:
         """
         Num params = num channels * num channels in previous layer * w * h
         where w, h = width, height of kernel
@@ -483,6 +490,10 @@ class MaxPool2dGene(GeneBase):
 
         super().__init__({"kernel_size": kernel_size, "stride": stride})
 
+    @property
+    def num_params(self) -> int:
+        return 0
+
 
 class FlattenGene(GeneBase):
     """
@@ -496,3 +507,7 @@ class FlattenGene(GeneBase):
 
     def to_module(self) -> nn.Module:
         return Flatten()
+
+    @property
+    def num_params(self) -> int:
+        return 0
