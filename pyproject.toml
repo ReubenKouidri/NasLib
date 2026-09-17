@@ -1,0 +1,88 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dnasty"
+version = "0.1.0"
+description = "Evolutionary neural architecture search for ECG arrhythmia classification"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Reuben Kouidri" }]
+requires-python = ">=3.10,<3.14"
+keywords = ["neural-architecture-search", "evolutionary", "ecg", "pytorch"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  # PyTorch dropped Intel-macOS wheels after 2.2.2; those builds need NumPy 1.x.
+  "torch>=2.2; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+  "torch>=2.2,<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+  "numpy>=1.26; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+  "numpy>=1.26,<2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+  "scipy>=1.11",
+  "PyWavelets>=1.5",
+  "scikit-image>=0.22",
+  "pandas>=2.1",
+  "pyyaml>=6.0",
+  "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+data = ["wfdb>=4.1"]
+viz = ["matplotlib>=3.8", "seaborn>=0.13"]
+dev = [
+  "pytest>=8.0",
+  "pytest-benchmark>=4.0",
+  "ruff>=0.6",
+  "mypy>=1.10",
+  "pre-commit>=3.7",
+  "types-PyYAML",
+]
+
+[project.scripts]
+dnasty = "dnasty.cli:main"
+
+[project.urls]
+Repository = "https://github.com/ReubenKouidri/NasLib"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dnasty"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/dnasty", "configs", "tests", "README.md", "LICENSE", "CHANGELOG.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+  "data: needs a local copy of a dataset (set DNASTY_DATA_DIR); skipped otherwise",
+  "slow: slow end-to-end tests",
+]
+filterwarnings = ["ignore::UserWarning:dnasty.search_space"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "NPY"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B"]
+
+[tool.mypy]
+python_version = "3.10"
+packages = ["dnasty"]
+ignore_missing_imports = true
+warn_unused_ignores = true

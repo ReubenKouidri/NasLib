@@ -1,58 +1,61 @@
-import unittest
-from dnasty.my_utils.config import Config, _convert_type
+import pytest
+
+from dnasty.utils.config import Config, _convert_type
 
 
-class TestConfig(unittest.TestCase):
+def test_basic_config():
+    config = Config({"key1": "value1", "key2": "2", "key3": "3.0", "key4": 4})
+    assert config.key1 == "value1"
+    assert config.key2 == 2
+    assert config.key3 == 3.0
+    assert config.key4 == 4
 
-    def test_basic_config(self):
-        """Test simple configuration loading and attribute access."""
-        config_data = {"key1": "value1", "key2": "2", "key3": "3.0"}
-        config = Config(config_data)
-        self.assertEqual(config.key1, "value1")
-        self.assertEqual(config.key2, 2)
-        self.assertEqual(config.key3, 3.0)
 
-    def test_nested_config(self):
-        """Test nested configuration loading and attribute access."""
-        nested_config_data = {
+def test_nested_config():
+    config = Config(
+        {
             "section1": {"key1": "true", "key2": "false"},
-            "section2": {"key3": "None", "key4": "text"}
+            "section2": {"key3": "None", "key4": "text"},
         }
-        config = Config(nested_config_data)
-        self.assertTrue(config.section1.key1)
-        self.assertFalse(config.section1.key2)
-        self.assertIsNone(config.section2.key3)
-        self.assertEqual(config.section2.key4, "text")
-
-    def test_list_handling(self):
-        """Test configuration with list values."""
-        config_data = {
-            "list_section": ["1", "2.0", "true", "none", "text"]
-        }
-        config = Config(config_data)
-        self.assertEqual(config.list_section, [1, 2.0, True, None, "text"])
-
-    def test_convert_type(self):
-        """Test the _convert_type helper function."""
-        self.assertEqual(_convert_type("10"), 10)
-        self.assertEqual(_convert_type("3.14"), 3.14)
-        self.assertTrue(_convert_type("true"))
-        self.assertFalse(_convert_type("false"))
-        self.assertIsNone(_convert_type("None"))
-        self.assertEqual(_convert_type("text"), "text")
-
-    def test_missing_attribute(self):
-        """Test accessing a non-existent attribute."""
-        config_data = {"key": "value"}
-        config = Config(config_data)
-        with self.assertRaises(AttributeError):
-            _ = config.missing_key
-
-    def test_incorrect_initialization(self):
-        """Test initialization with incorrect data type."""
-        with self.assertRaises(TypeError):
-            Config(123)  # Non-mapping type should raise TypeError
+    )
+    assert config.section1.key1 is True
+    assert config.section1.key2 is False
+    assert config.section2.key3 is None
+    assert config.section2.key4 == "text"
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_list_handling():
+    config = Config({"list_section": ["1", "2.0", "true", "none", "text"]})
+    assert config.list_section == [1, 2.0, True, None, "text"]
+
+
+def test_convert_type():
+    assert _convert_type("10") == 10
+    assert _convert_type("3.14") == 3.14
+    assert _convert_type("true") is True
+    assert _convert_type("false") is False
+    assert _convert_type("None") is None
+    assert _convert_type("text") == "text"
+    assert _convert_type(7) == 7
+
+
+def test_missing_attribute():
+    config = Config({"key": "value"})
+    with pytest.raises(AttributeError):
+        _ = config.missing_key
+    assert config.get("missing_key", "d") == "d"
+    assert "key" in config
+
+
+def test_incorrect_initialization():
+    with pytest.raises(TypeError):
+        Config(123)
+
+
+def test_yaml_and_to_dict(tmp_path):
+    path = tmp_path / "c.yaml"
+    path.write_text("a:\n  b: 1\n  c: [x, '2']\nseed: 0\n")
+    cfg = Config.from_file(path)
+    assert cfg.a.b == 1
+    assert cfg.a.c == ["x", 2]
+    assert cfg.to_dict() == {"a": {"b": 1, "c": ["x", 2]}, "seed": 0}

@@ -1,17 +1,16 @@
-import torch
-from torch import nn
 import copy
 import unittest
+
+import torch
+from torch import nn
+
 from dnasty.search_space.common import ConvBlock2dGene
 
 
 class TestConvBlockGene(unittest.TestCase):
     def setUp(self):
         self.gene = ConvBlock2dGene(
-            in_channels=32,
-            out_channels=64,
-            kernel_size=5,
-            activation="ReLU"
+            in_channels=32, out_channels=64, kernel_size=5, activation="ReLU"
         )
 
     def test_init(self):
@@ -36,9 +35,9 @@ class TestConvBlockGene(unittest.TestCase):
         self.assertEqual(module[0].stride, (1, 1))
         self.assertEqual(module[0].padding, (0, 0))
         self.assertEqual(module[0].groups, 1)
-        self.assertEqual(module[0].bias.shape, torch.Size([64]))
-        self.assertIsInstance(module[1], nn.ReLU)
-        self.assertIsInstance(module[2], nn.BatchNorm2d)
+        self.assertIsNone(module[0].bias)  # BatchNorm follows, bias is redundant
+        self.assertIsInstance(module[1], nn.BatchNorm2d)
+        self.assertIsInstance(module[2], nn.ReLU)
 
     def test_forward(self):
         module = self.gene.to_module()
@@ -49,13 +48,16 @@ class TestConvBlockGene(unittest.TestCase):
     def test_deepcopy(self):
         copied_gene = copy.deepcopy(self.gene)
 
-        self.assertIsNot(copied_gene, self.gene,
-                         "Deep copy resulted in the same object reference.")
+        self.assertIsNot(
+            copied_gene, self.gene, "Deep copy resulted in the same object reference."
+        )
 
         # this is valid for ConvBlock2dGene as it is not composite (c.f. CBAM)
-        self.assertEqual(copied_gene.__dict__, self.gene.__dict__,
-                         "Attributes of the deep copied object do not match "
-                         "the original.")
+        self.assertEqual(
+            copied_gene.__dict__,
+            self.gene.__dict__,
+            "Attributes of the deep copied object do not match the original.",
+        )
 
     def test_len(self):
         self.assertEqual(len(self.gene), 5)

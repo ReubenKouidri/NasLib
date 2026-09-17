@@ -1,95 +1,65 @@
-import unittest
 import numpy as np
+import pytest
 import torch
 
-from datasets.CPSCDataset import CPSCDataset2D
-from dnasty.my_utils.wavelets import mexh
-from datasets import CPSCDataset
+from dnasty.data import CPSCDataset, CPSCDataset2D, read_reference
+from dnasty.utils.wavelets import mexh
+
+pytestmark = pytest.mark.data
 
 
-#TODO:
-# add test cases for:
-#  - _normalize(), _trim_data(), _smoothen()
+@pytest.fixture(scope="module")
+def dataset_1d(cpsc_paths):
+    data_dir, reference = cpsc_paths
+    return CPSCDataset(data_dir=data_dir, reference_path=reference, lead=3)
 
 
-class TestCPSCDataset(unittest.TestCase):
-    def setUp(self):
-        self.dataset = CPSCDataset(
-            data_dir="datasets/cpsc_data/test100",
-            reference_path="datasets/cpsc_data/reference300.csv",
-            normalize=True,
-            smoothen=True,
-            trim=True,
-            lead=3)
-
-    def test_testing_mode(self):
-        self.dataset.test = True
-        x, y = self.dataset[0]
-        self.assertTrue(isinstance(x, torch.Tensor))
-        self.assertTrue(isinstance(y, torch.Tensor))
-        self.assertEqual(len(y), 3)
-        self.assertEqual(y[0].shape, torch.Size([]))
-        self.assertEqual(y[1].shape, torch.Size([]))
-        self.assertEqual(y[2].shape, torch.Size([]))
-
-        self.dataset.test = False
-        x, y = self.dataset[0]
-        self.assertTrue(isinstance(x, torch.Tensor))
-        self.assertTrue(isinstance(y, torch.Tensor))
-        self.assertEqual(y.shape, torch.Size([]))
-
-    def test_len(self):
-        self.assertEqual(len(self.dataset), 100)
-
-    def test_getitem(self):
-        x, y = self.dataset[0]
-        self.assertTrue(torch.is_tensor(x))
-        self.assertTrue(torch.is_tensor(y))
-        self.assertEqual(x.dtype, torch.float64)
-        self.assertEqual(y.dtype, torch.int64)
-        self.assertEqual(x.shape, torch.Size([1000]))  # 1D Tensor of length 1000
-        self.assertEqual(y.shape, torch.Size([]))  # 0-D Tensor
+@pytest.fixture(scope="module")
+def dataset_2d(cpsc_paths):
+    data_dir, reference = cpsc_paths
+    return CPSCDataset2D(
+        data_dir=data_dir, reference_path=reference, wavelet="mexh", lead=3
+    )
 
 
-class TestCPSCDataset2D(unittest.TestCase):
-    def setUp(self):
-        self.dataset = CPSCDataset2D(data_dir="datasets/cpsc_data/test100",
-                                     reference_path="datasets/cpsc_data/reference300.csv",
-                                     wavelet="mexh",
-                                     lead=3)
-
-    def test_testing_mode(self):
-        self.dataset.test = True
-        x0, y0 = self.dataset[0]
-        self.assertTrue(isinstance(x0, torch.Tensor))
-        self.assertEqual(x0.shape, torch.Size([1, 128, 128]))
-        self.assertTrue(isinstance(y0, torch.Tensor))
-        self.assertEqual(len(y0), 3)
-
-        self.dataset.test = False
-        x1, y1 = self.dataset[0]
-        self.assertEqual(torch.all(x1), torch.all(x0))
-        self.assertNotEqual(torch.all(y1), torch.all(y0))
-        self.assertTrue(isinstance(x1, torch.Tensor))
-        self.assertTrue(isinstance(y1, torch.Tensor))
-        self.assertEqual(y1.shape, torch.Size([]))
-
-    def test_getitem(self):
-        x, y = self.dataset[0]
-        self.assertTrue(torch.is_tensor(x))
-        self.assertTrue(torch.is_tensor(y))
-        self.assertEqual(x.dtype, torch.float64)
-        self.assertEqual(y.dtype, torch.int64)
-        self.assertEqual(x.shape, torch.Size([1, 128, 128]))
-        self.assertEqual(y.shape, torch.Size([]))  # 0-D Tensor
-
-    def test_wavelet(self):
-        data = np.random.rand(1000)
-        img = mexh(data, 64)
-        self.assertEqual(img.shape, (128, 128))
-        self.assertTrue(isinstance(img, np.ndarray))
-        self.assertTrue(np.all(np.isfinite(img)))
+def test_reference_join(cpsc_paths):
+    data_dir, reference = cpsc_paths
+    ref = read_reference(reference)
+    assert ref["A0001"] == (4, -1, -1)  # PAC=5 in the CSV -> class 4, no extras
+    ds = CPSCDataset(data_dir=data_dir, reference_path=reference)
+    assert ds.record_ids[0] == "A0001"
+    assert int(ds[0][1]) == 4
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_1d_shapes_and_types(dataset_1d):
+    x, y = dataset_1d[0]
+    assert torch.is_tensor(x) and torch.is_tensor(y)
+    assert x.dtype == torch.float32
+    assert y.dtype == torch.int64
+    assert x.shape == torch.Size([1000])  # 4 s at 500 Hz, decimated by 2
+    assert y.shape == torch.Size([])
+    assert len(dataset_1d) == 100
+
+
+def test_test_mode_returns_all_labels(dataset_1d):
+    dataset_1d.test = True
+    try:
+        _, y = dataset_1d[0]
+        assert y.shape == torch.Size([3])
+        assert y[0] >= 0 and y[1] == -1
+    finally:
+        dataset_1d.test = False
+
+
+def test_2d_shapes(dataset_2d):
+    x, y = dataset_2d[0]
+    assert x.dtype == torch.float32
+    assert x.shape == torch.Size([1, 128, 128])
+    assert y.shape == torch.Size([])
+    assert torch.isfinite(x).all()
+
+
+def test_wavelet():
+    img = mexh(np.random.rand(1000), 64)
+    assert img.shape == (128, 128)
+    assert np.all(np.isfinite(img))

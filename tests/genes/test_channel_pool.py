@@ -1,5 +1,7 @@
 import unittest
+
 import torch
+
 from dnasty.search_space.cbam import ChannelPool
 
 
@@ -21,5 +23,5 @@ class TestChannelPool(unittest.TestCase):
         self.assertTrue(torch.allclose(y[:, 1, :, :], x_mean))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

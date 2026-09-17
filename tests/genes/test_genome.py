@@ -1,16 +1,17 @@
-import unittest
 import copy
+import unittest
+
 import torch
 
 from dnasty.search_space.cbam import (
-    ConvBlock2dGene,
-    MaxPool2dGene,
-    FlattenGene,
-    LinearBlockGene,
     CBAMGene,
     ChannelAttentionGene,
+    ConvBlock2dGene,
+    FlattenGene,
+    Genome,
+    LinearBlockGene,
+    MaxPool2dGene,
     SpatialAttentionGene,
-    Genome
 )
 
 
@@ -20,8 +21,9 @@ class TestGenome(unittest.TestCase):
         self.conv2 = ConvBlock2dGene(1, 50, 11)
         self.conv3 = ConvBlock2dGene(1, 127, 12)
         self.mp = MaxPool2dGene(2, 2)
-        self.cbam = CBAMGene(ChannelAttentionGene(se_ratio=5),
-                             SpatialAttentionGene(kernel_size=3))
+        self.cbam = CBAMGene(
+            ChannelAttentionGene(se_ratio=5), SpatialAttentionGene(kernel_size=3)
+        )
         self.linear1 = LinearBlockGene(100, 200)
         self.linear2 = LinearBlockGene(300, 400)
         self.flatten = FlattenGene()
@@ -34,15 +36,14 @@ class TestGenome(unittest.TestCase):
             self.cbam,
             self.flatten,
             self.linear1,
-            self.linear2
+            self.linear2,
         ]
 
-        self.genome = Genome.from_sequence(self.genes)
-        self.genome.__num_classes = 9
+        self.genome = Genome.from_sequence(self.genes, num_classes=9)
         self.img_size = 128
         # 128 -> 119 -> 109 -> 98 -> 49
         # 49^2 * CHANNELS
-        self.outdims = (49 ** 2) * 128
+        self.outdims = (49**2) * 128
 
     def test_len(self):
         self.assertEqual(len(self.genome), len(self.genes))
@@ -74,16 +75,18 @@ class TestGenome(unittest.TestCase):
         g8 = next(genes_iter)
         self.assertEqual(g8.in_features, 200)
         self.assertEqual(g8.out_features, 9)
+        self.assertIsNone(g8.activation)  # logits out
+        self.assertFalse(g8.dropout)
 
     def test_deepcopy(self):
         genome_copy = copy.deepcopy(self.genome)
         self.assertNotEqual(genome_copy, self.genome)
         self.assertNotEqual(genome_copy.genes, self.genome.genes)
 
-        for g1, g2 in zip(genome_copy.genes.values(),
-                          self.genome.genes.values()):
-            self.assertNotEqual(g1, g2, f"Genes {g1} and {g2} reference "
-                                        f"the same object")
+        for g1, g2 in zip(genome_copy.genes.values(), self.genome.genes.values()):
+            self.assertNotEqual(
+                g1, g2, f"Genes {g1} and {g2} reference the same object"
+            )
             for v1, v2 in zip(g1.exons.values(), g2.exons.values()):
                 self.assertEqual(v1, v2)  # check the values are the same
             for k1, k2 in zip(g1.exons.keys(), g2.exons.keys()):

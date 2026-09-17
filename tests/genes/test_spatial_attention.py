@@ -1,40 +1,33 @@
-import torch
 import copy
-import unittest
+
+import torch
+from torch import nn
+
 from dnasty.search_space.cbam import SpatialAttentionGene
 
 
-class TestSpatialAttentionGene(unittest.TestCase):
-    def setUp(self):
-        self.gene = SpatialAttentionGene(7)
-
-    def test_init(self):
-        self.assertIsInstance(self.gene, SpatialAttentionGene)
-        self.assertEqual(self.gene.kernel_size, 7)
-
-    def test_getattr(self):
-        with self.assertRaises(AttributeError):
-            _ = self.gene.invalid
-
-    def test_express(self):
-        module = self.gene.to_module()
-        x = torch.randn(16, 64, 32, 32)
-        y = module(x)
-        self.assertEqual(y.shape, torch.Size((16, 64, 32, 32)))
-
-    def test_len(self):
-        self.assertEqual(len(self.gene), 1)
-
-    def test_deepcopy(self):
-        copied_gene = copy.deepcopy(self.gene)
-
-        self.assertIsNot(copied_gene, self.gene,
-                         "Deep copy resulted in the same object reference.")
-
-        self.assertEqual(copied_gene.__dict__, self.gene.__dict__,
-                         "Attributes of the deep copied object do not match "
-                         "the original.")
+def test_init_and_getattr():
+    gene = SpatialAttentionGene(7)
+    assert gene.kernel_size == 7
+    assert len(gene) == 1
+    try:
+        _ = gene.invalid
+    except AttributeError:
+        pass
+    else:
+        raise AssertionError("expected AttributeError")
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_express_gate_ends_with_sigmoid():
+    module = SpatialAttentionGene(7).to_module()
+    assert isinstance(module.conv[-1], nn.Sigmoid)
+    x = torch.randn(16, 64, 32, 32)
+    y = module(x)
+    assert y.shape == x.shape
+
+
+def test_deepcopy():
+    gene = SpatialAttentionGene(7)
+    copied = copy.deepcopy(gene)
+    assert copied is not gene
+    assert copied.__dict__ == gene.__dict__

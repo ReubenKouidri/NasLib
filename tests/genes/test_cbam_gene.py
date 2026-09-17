@@ -1,16 +1,23 @@
-import unittest
-import torch
 import copy
-from dnasty.search_space.cbam import ChannelAttentionGene, SpatialAttentionGene
-from dnasty.search_space.cbam import CBAMGene, CBAM
+import unittest
+
+import torch
+
+from dnasty.search_space.cbam import (
+    CBAM,
+    CBAMGene,
+    ChannelAttentionGene,
+    SpatialAttentionGene,
+)
 
 
 class TestCBAMGene(unittest.TestCase):
     def setUp(self):
         self.channel_gene = ChannelAttentionGene(in_channels=16, se_ratio=4)
         self.spatial_gene = SpatialAttentionGene(kernel_size=3)
-        self.cbam_gene = CBAMGene(channel_gene=self.channel_gene,
-                                  spatial_gene=self.spatial_gene)
+        self.cbam_gene = CBAMGene(
+            channel_gene=self.channel_gene, spatial_gene=self.spatial_gene
+        )
 
     def test_initialization(self):
         self.assertEqual(self.cbam_gene.in_channels, 16)
@@ -27,33 +34,46 @@ class TestCBAMGene(unittest.TestCase):
     def test_deepcopy(self):
         copied_gene = copy.deepcopy(self.cbam_gene)
 
-        self.assertIsNot(copied_gene, self.cbam_gene,
-                         "Deep copy resulted in the same object reference.")
+        self.assertIsNot(
+            copied_gene,
+            self.cbam_gene,
+            "Deep copy resulted in the same object reference.",
+        )
 
-        self.assertIsNot(copied_gene.channel_gene, self.channel_gene,
-                         "Deep copy resulted in the same object reference.")
+        self.assertIsNot(
+            copied_gene.channel_gene,
+            self.channel_gene,
+            "Deep copy resulted in the same object reference.",
+        )
 
-        self.assertIsNot(copied_gene.spatial_gene, self.spatial_gene,
-                         "Deep copy resulted in the same object reference.")
+        self.assertIsNot(
+            copied_gene.spatial_gene,
+            self.spatial_gene,
+            "Deep copy resulted in the same object reference.",
+        )
 
-        self.assertEqual(copied_gene.exons, self.cbam_gene.exons,
-                         "Attributes of the deep copied object do not match "
-                         "the original.")
+        self.assertEqual(
+            copied_gene.exons,
+            self.cbam_gene.exons,
+            "Attributes of the deep copied object do not match the original.",
+        )
 
-        self.assertEqual(copied_gene.channel_gene.exons,
-                         self.cbam_gene.channel_gene.exons,
-                         "Attributes of the deep copied object do not match "
-                         "the original.")
+        self.assertEqual(
+            copied_gene.channel_gene.exons,
+            self.cbam_gene.channel_gene.exons,
+            "Attributes of the deep copied object do not match the original.",
+        )
 
-        self.assertEqual(copied_gene.spatial_gene.exons,
-                         self.cbam_gene.spatial_gene.exons,
-                         "Attributes of the deep copied object do not match "
-                         "the original.")
+        self.assertEqual(
+            copied_gene.spatial_gene.exons,
+            self.cbam_gene.spatial_gene.exons,
+            "Attributes of the deep copied object do not match the original.",
+        )
 
     def test_from_random(self):
         cbam_gene = CBAMGene.from_random()
         self.assertIsInstance(cbam_gene, CBAMGene)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

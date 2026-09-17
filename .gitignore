@@ -1,8 +1,29 @@
+# Python
 __pycache__/
-*/__pycache__
-.DS_Store
-*.pyc
-*.ipynb
-.idea/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.benchmarks/
+.venv/
 venv/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Data (fetch with `dnasty data download ...`) and large artefacts
+data/
+datasets/
+*.mat
+*.pdf
+checkpoints/
+runs/
+*.pt
+
+# Legacy, not part of the package
 moregacode/

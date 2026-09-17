@@ -1,0 +1,37 @@
+# Smallest configuration: used by the tests and for smoke runs.
+nas:
+  seed: 0
+  device: cpu
+  data_dir: datasets
+  data:
+    name: cpsc2d
+    subdir: cpsc_data/test100
+    reference: cpsc_data/reference300.csv
+    wavelet: mexh
+    lead: 3
+    train_pct: 0.6
+    num_workers: 0
+  train:
+    epochs: 2
+    batch_size: 8
+    lr: 0.001
+  eval:
+    batch_size: 16
+  num_classes: 9
+  image_dims: 128
+  in_channels: 1
+  population_size: 3
+  generations: 2
+  search_strategy: random
+  perf_metric: val_acc
+  estimator:
+    low_fidelity:
+      epochs: 1
+  search_space:
+    cbam:
+      cells: 2
+      conv: 2
+      linear: 2
+      max_num_params: 1_000_000
+      max_outdims: 25
+      min_outdims: 5

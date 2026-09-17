@@ -1,5 +1,7 @@
-import torch
 import unittest
+
+import torch
+
 from dnasty.search_space.common import Flatten
 
 
