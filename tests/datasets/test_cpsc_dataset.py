@@ -60,6 +60,6 @@ def test_2d_shapes(dataset_2d):
 
 
 def test_wavelet():
-    img = mexh(np.random.rand(1000), 64)
+    img = mexh(np.random.default_rng(0).random(1000), 64)
     assert img.shape == (128, 128)
     assert np.all(np.isfinite(img))

@@ -13,11 +13,11 @@ search space against the current literature, plus the roadmap that follows from 
 | Component | Available now |
 |---|---|
 | Search space | `cbam`: chain of `[ConvBlock2d × n → MaxPool2d → CBAM] × cells → Flatten → LinearBlock × linear` on 128×128 single-channel images |
-| Search strategy | `RandomSearch` (the baseline every other strategy has to beat) |
-| Estimator | `LowFidelityEstimator` (train for a few epochs, best validation accuracy), `MockEstimator` (random fitness, for tests and benchmarks) |
+| Search strategy | `RandomSearch` (the baseline every other strategy has to beat); `RegularizedEvolution` (aging evolution, Real et al. 2019) with hyper-parameter, insert-conv and delete-conv mutations and optional one-point crossover at cell boundaries |
+| Estimator | `LowFidelityEstimator` (train for a few epochs, best validation accuracy); `SyntheticEstimator` (deterministic training-free landscape for comparing strategies); `CachedEstimator` (memoises on the architecture); `MockEstimator` (random fitness, for tests) |
 | Data | CPSC 2018 single-lead records as raw signals (`cpsc1d`) or Mexican-hat wavelet images (`cpsc2d`); PhysioNet downloads for MIT-BIH, PTB-XL and CPSC 2018 |
 
-Evolutionary operators (mutation, crossover, aging selection) are the next milestone; see the roadmap in the review.
+Multi-objective selection, zero-cost proxies, predictors and a cell-based search space are the next milestones; see the roadmap in the review.
 
 ## Install
 
@@ -56,24 +56,49 @@ The bundled configs expect `<root>/cpsc_data/test100/*.mat` and `<root>/cpsc_dat
 uv run dnasty search --config configs/tiny.yaml --mock-evaluator --seed 0
 ```
 
-drops `--mock-evaluator` to train each candidate on the data:
+`--estimator low-fidelity` (the default) trains each candidate on the data, and `--strategy` picks the search strategy
+(`random` or `regularized_evolution`, overriding `search_strategy` in the config):
 
 ```bash
-DNASTY_DATA_DIR=datasets uv run dnasty search --config configs/default.yaml --seed 0 -v
+DNASTY_DATA_DIR=datasets uv run dnasty search --config configs/default.yaml --strategy regularized_evolution --seed 0 -v
 ```
 
-Each run writes `runs/<timestamp>/config.yaml` and `results.jsonl` (one line per generation with the best genome, its
-fitness and parameter count). Runs with the same config and seed are identical.
+Each run writes `runs/<timestamp>/config.yaml`, `results.jsonl` (the best genome after each generation) and
+`evaluated.jsonl` (every evaluated genome in order). Runs with the same config and seed are identical.
+
+## Compare strategies
+
+Every strategy spends the same budget, `population_size × generations` estimator calls, so they can be compared
+directly. `dnasty benchmark` runs each strategy at each seed and reports the best fitness found:
+
+```bash
+uv run dnasty benchmark --config configs/default.yaml --strategies random regularized_evolution --seeds 0 1 2
+```
+
+The default estimator is `synthetic`: a fixed, training-free landscape over the search space (rewards four conv
+blocks, kernel sizes near 5, 64 channels and few parameters), which checks that a strategy climbs without costing any
+GPU time. With the default config (100 evaluations, 3 seeds) it gives:
+
+| strategy | best mean | std | min | max | unique archs | time/s |
+|---|---|---|---|---|---|---|
+| random | 0.7994 | 0.0141 | 0.7864 | 0.8190 | 100.0 | 0.81 |
+| regularized_evolution | 0.8930 | 0.0295 | 0.8580 | 0.9301 | 94.3 | 0.28 |
+
+`--estimator low-fidelity` runs the same comparison with real training (one shared data split and a shared result
+cache, so each architecture is trained once). The run directory `runs/bench-<timestamp>/` holds `results.jsonl` with
+the best-so-far curve of every run and `summary.json`. The wall time of a synthetic run is the strategy's own
+overhead, which is the baseline for the planned Mojo port.
 
 From Python:
 
 ```python
-from dnasty import Config, DataModule, LowFidelityEstimator, RandomSearch, seed_everything
+from dnasty import Config, DataModule, LowFidelityEstimator, build_strategy, seed_everything
 
 config = Config.from_file("configs/default.yaml").nas
 seed_everything(config.seed)
 datamodule = DataModule.from_config(config)          # one seeded split, shared everywhere
-search = RandomSearch(config, estimator=LowFidelityEstimator(config, datamodule=datamodule))
+estimator = LowFidelityEstimator(config, datamodule=datamodule)
+search = build_strategy(config, estimator=estimator, name="regularized_evolution")
 search.fit()
 print(search.fittest_genome)
 ```
@@ -98,7 +123,8 @@ src/dnasty/
   defaults/         Trainer and a hand-designed reference model
   estimators/       fitness estimators
   search_space/     common building blocks + the cbam space (genes, genome, components)
-  search_strategies/
+  search_strategies/ RandomSearch, RegularizedEvolution, mutation/crossover operators
+  benchmark.py      strategy comparison harness (dnasty benchmark)
   utils/            Config (YAML/JSON), seeding, metrics, wavelets
 configs/            default.yaml, tiny.yaml
 docs/REVIEW.md      review and roadmap

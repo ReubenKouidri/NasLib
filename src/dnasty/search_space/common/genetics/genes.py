@@ -52,6 +52,28 @@ def validate_feature(name: str, value: Any, allowed_range: Container | Iterable)
         raise TypeError(f"{type(value).__name__} not supported.")
 
 
+def step_feature(value: int, allowed: Iterable[int], max_step: int = 1) -> int:
+    """Move ``value`` to a neighbouring entry of the sorted ``allowed`` values.
+
+    The step is uniform over ``[-max_step, max_step]`` without zero. At a
+    boundary the step is reflected, so the result differs from ``value``
+    whenever more than one value is allowed. This is the "hyper-parameter
+    step" mutation used by regularised evolution.
+    """
+    values = sorted(allowed)
+    if len(values) < 2:
+        return values[0] if values else value
+    if value in values:
+        index = values.index(value)
+    else:
+        index = min(range(len(values)), key=lambda j: abs(values[j] - value))
+    step = random.choice([s for s in range(-max_step, max_step + 1) if s != 0])
+    target = index + step
+    if not 0 <= target < len(values):
+        target = index - step
+    return values[max(0, min(target, len(values) - 1))]
+
+
 def create_conv_block_sequence(cfg: Config) -> list:
     return [
         ConvBlock2dGene.from_random() for _ in range(random.randint(1, cfg.conv))
@@ -368,12 +390,15 @@ class LinearBlockGene(GeneBase):
         )
 
     def mutate(self) -> None:
-        dropout: bool = self.exons["dropout"]
-        self.dropout = not dropout
-        out_features: int = self.exons["out_features"] + random.randrange(-100, 100, 10)
-        self.out_features = validate_feature(
-            "out_features", out_features, self._feature_ranges["out_features"]
-        )
+        """Toggle dropout (p = 0.3) or shift ``out_features`` by 10 to 100."""
+        if random.random() < 0.3:
+            self.dropout = not self.exons["dropout"]
+            return
+        allowed = self._feature_ranges["out_features"]
+        low = min(allowed)
+        high = max(low, min(max(allowed), self.exons["in_features"]))
+        delta = random.choice((-1, 1)) * random.randrange(10, 110, 10)
+        self.out_features = max(low, min(high, self.exons["out_features"] + delta))
 
     @property
     def num_params(self):
@@ -440,6 +465,15 @@ class ConvBlock2dGene(GeneBase):
             }
         )
 
+    def mutate(self) -> None:
+        """Step ``out_channels`` or ``kernel_size`` to a neighbouring value."""
+        feature = random.choice(("out_channels", "kernel_size"))
+        setattr(
+            self,
+            feature,
+            step_feature(self.exons[feature], self._feature_ranges[feature]),
+        )
+
     @property
     def num_params(self):
         """
@@ -500,6 +534,13 @@ class MaxPool2dGene(GeneBase):
             stride = validate_feature("stride", stride, self._feature_ranges["stride"])
 
         super().__init__({"kernel_size": kernel_size, "stride": stride})
+
+    def mutate(self) -> None:
+        """Step the pooling window; the stride follows it."""
+        self.kernel_size = step_feature(
+            self.exons["kernel_size"], self._feature_ranges["kernel_size"]
+        )
+        self.stride = self.exons["kernel_size"]
 
 
 class FlattenGene(GeneBase):

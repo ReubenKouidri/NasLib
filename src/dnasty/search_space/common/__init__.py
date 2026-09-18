@@ -7,6 +7,7 @@ from .genetics import (
     LinearBlockGene,
     MaxPool2dGene,
     create_conv_block_sequence,
+    step_feature,
     validate_feature,
 )
 
@@ -21,5 +22,6 @@ __all__ = [
     "MaxPool2dGene",
     "create_conv_block_sequence",
     "get_activation",
+    "step_feature",
     "validate_feature",
 ]

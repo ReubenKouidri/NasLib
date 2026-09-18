@@ -5,6 +5,7 @@ from .genes import (
     LinearBlockGene,
     MaxPool2dGene,
     create_conv_block_sequence,
+    step_feature,
     validate_feature,
 )
 
@@ -15,5 +16,6 @@ __all__ = [
     "LinearBlockGene",
     "MaxPool2dGene",
     "create_conv_block_sequence",
+    "step_feature",
     "validate_feature",
 ]

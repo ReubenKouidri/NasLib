@@ -23,6 +23,9 @@ nas:
   population_size: 3
   generations: 2
   search_strategy: random
+  evolution:
+    sample_size: 2
+    crossover_prob: 0.0
   perf_metric: val_acc
   estimator:
     low_fidelity:

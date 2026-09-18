@@ -22,8 +22,15 @@ nas:
   image_dims: 128
   in_channels: 1
   population_size: 10
-  generations: 10
-  search_strategy: random
+  generations: 10           # budget = population_size * generations evaluations
+  search_strategy: random   # random | regularized_evolution
+  evolution:                # used by regularized_evolution
+    sample_size: 3          # tournament size
+    crossover_prob: 0.0     # 0 = mutation only (Real et al. 2019)
+    mutation:               # relative weights of the mutation operators
+      hparam: 0.7
+      insert_conv: 0.15
+      delete_conv: 0.15
   perf_metric: val_acc
   estimator:
     low_fidelity:

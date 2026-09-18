@@ -46,10 +46,13 @@ class TestLinearGene(unittest.TestCase):
         self.assertIsInstance(module[2], nn.Dropout)
 
     def test_mutate(self):
-        pre_drop = self.gene.dropout
+        # One mutation changes exactly one of dropout / out_features.
+        pre_drop, pre_out = self.gene.dropout, self.gene.out_features
         self.gene.mutate()
         self._test_within_ranges(self.gene)
-        self.assertNotEqual(self.gene.dropout, pre_drop)
+        changed = (self.gene.dropout != pre_drop, self.gene.out_features != pre_out)
+        self.assertEqual(sum(changed), 1)
+        self.assertLessEqual(self.gene.out_features, self.gene.in_features)
 
     def test_len(self):
         self.assertEqual(len(self.gene), 4)

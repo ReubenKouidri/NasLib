@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- `RegularizedEvolution` (aging evolution, Real et al. 2019) with tournament selection and a `evolution:` config
+  section; operators in `dnasty.search_strategies.operators`: hyper-parameter step, insert-conv and delete-conv
+  mutations, one-point crossover at cell boundaries.
+- `dnasty benchmark`: runs each strategy at each seed with the same evaluation budget and writes best-so-far curves
+  and a summary; `SyntheticEstimator` (deterministic, training-free landscape) and `CachedEstimator`.
+- `Genome.arch_key()`, `to_sequence()`, `spawn()`; `build_strategy()` registry; `dnasty search --strategy/--estimator`
+  and `evaluated.jsonl` per run.
+
+### Fixed
+- `CBAMGene.mutate` changed the sub-genes, which the next `sync` overwrote; it now mutates the CBAM exons.
+- `.gitignore` no longer ignores `src/dnasty/data/`.
+
+### Changed
+- `LinearBlockGene.mutate` changes one feature (dropout or width) instead of both.
+
 ## 0.1.0 (unreleased)
 
 First packaged version. See `docs/REVIEW.md` for the full review that motivated these changes.

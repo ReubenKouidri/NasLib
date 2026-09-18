@@ -227,6 +227,38 @@ class Genome:
             "genes": {name: dict(gene.exons) for name, gene in self.genes.items()},
         }
 
+    def arch_key(self) -> tuple:
+        """Hashable structural identity: gene types and exons, ignoring fitness.
+
+        Two genomes with the same key express the same module up to weight
+        initialisation, so estimators can cache on it and strategies can
+        detect duplicates.
+        """
+
+        def freeze(value: Any) -> Any:
+            return tuple(value) if isinstance(value, list) else value
+
+        return tuple(
+            (
+                type(gene).__name__,
+                tuple((k, freeze(v)) for k, v in sorted(gene.exons.items())),
+            )
+            for gene in self.genes.values()
+        )
+
+    def to_sequence(self) -> list[GeneBase]:
+        """Deep copies of the genes in order, for building a modified genome."""
+        return [copy.deepcopy(gene) for gene in self.genes.values()]
+
+    def spawn(self, genes: abc.MutableSequence) -> Genome:
+        """New genome from ``genes`` with this genome's input/output settings."""
+        return Genome.from_sequence(
+            genes,
+            num_classes=self.num_classes,
+            image_dims=self.image_dims,
+            in_channels=self.in_channels,
+        )
+
     def __deepcopy__(self, memo: dict) -> Genome:
         if id(self) in memo:
             return memo[id(self)]

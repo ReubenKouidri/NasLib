@@ -207,13 +207,16 @@ change. The port targets Python-side hot paths and the benchmark has to isolate 
 
 ## 7. Roadmap
 
-1. **Benchmark harness**: seeded runs, fixed evaluation budget, random-search baseline, ≥ 3 repeats, results to
-   `runs/`. Everything below is judged with it.
+1. **Benchmark harness** (done: `dnasty benchmark`, `dnasty.benchmark`, `SyntheticEstimator`, `CachedEstimator`):
+   seeded runs, fixed evaluation budget, random-search baseline, ≥ 3 repeats, results to `runs/`. Everything below is
+   judged with it.
 2. **Genes without metaprogramming**: dataclass genes, strict validation, `Genome.__eq__`/`__hash__`, pure
    validity checks.
 3. **Search space v2** (section 4): dimension-agnostic cells, GAP head, analytic params/FLOPs, `tiny/small/medium`.
 4. **Data v2** (section 2): PTB-XL 1D loader with cached preprocessing, all leads, multi-label metrics; CPSC full.
-5. **Strategies** (section 3): `RegularizedEvolution` with the operator library and ablations, `NSGA2`,
+5. **Strategies** (section 3): `RegularizedEvolution` with the operator library (done: mutation-only aging evolution,
+   hyper-parameter / insert-conv / delete-conv mutations, one-point crossover behind `evolution.crossover_prob`;
+   ablations still to run on real data), `NSGA2`,
    zero-cost-proxy and successive-halving estimators, BANANAS-style predictor; SPOS supernet once space v2 exists;
    LLM-guided operators as an experiment.
 6. **Mojo**: profile, freeze the baseline, port the measured hot paths (section 6).

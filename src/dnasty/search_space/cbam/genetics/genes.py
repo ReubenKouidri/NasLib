@@ -5,6 +5,7 @@ from dnasty.search_space.common import (
     GeneBase,
     LinearBlockGene,
     create_conv_block_sequence,
+    step_feature,
     validate_feature,
 )
 from dnasty.utils.config import Config
@@ -44,8 +45,9 @@ class SpatialAttentionGene(GeneBase):
         super().__init__({"kernel_size": kernel_size})
 
     def mutate(self) -> None:
-        dk = 1 if random.random() < 0.5 else -1
-        self.kernel_size += dk
+        self.kernel_size = step_feature(
+            self.exons["kernel_size"], self._feature_ranges["kernel_size"]
+        )
 
     @property
     def num_params(self):
@@ -78,8 +80,9 @@ class ChannelAttentionGene(GeneBase):
         super().__init__({"in_channels": in_channels, "se_ratio": se_ratio})
 
     def mutate(self) -> None:
-        dr = 1 if random.random() < 0.5 else -1
-        self.se_ratio += dr
+        self.se_ratio = step_feature(
+            self.exons["se_ratio"], self._feature_ranges["se_ratio"]
+        )
 
     @property
     def num_params(self):
@@ -138,9 +141,23 @@ class CBAMGene(GeneBase):
             }
         )
 
-    def mutate(self, *args, **kwargs) -> None:
-        self.channel_gene.mutate(*args, **kwargs)
-        self.spatial_gene.mutate(*args, **kwargs)
+    def mutate(self) -> None:
+        """Step ``se_ratio`` or the spatial ``kernel_size``.
+
+        The CBAM exons are the source of truth (``sync`` copies them into the
+        sub-genes), so mutating the sub-genes directly would be undone by the
+        next ``sync``.
+        """
+        if random.random() < 0.5:
+            self.se_ratio = step_feature(
+                self.exons["se_ratio"], ChannelAttentionGene._feature_ranges["se_ratio"]
+            )
+        else:
+            self.kernel_size = step_feature(
+                self.exons["kernel_size"],
+                SpatialAttentionGene._feature_ranges["kernel_size"],
+            )
+        self.sync()
 
     def sync(self):
         self.channel_gene.in_channels = self.in_channels
