@@ -16,9 +16,10 @@ venv/
 .vscode/
 .DS_Store
 
-# Data (fetch with `dnasty data download ...`) and large artefacts
-data/
-datasets/
+# Data (fetch with `dnasty data download ...`) and large artefacts.
+# Anchored to the repo root so that src/dnasty/data/ is not ignored.
+/data/
+/datasets/
 *.mat
 *.pdf
 checkpoints/
