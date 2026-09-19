@@ -1,0 +1,45 @@
+# Benchmark configuration for `dnasty benchmark --estimator low-fidelity` on the CPSC subset.
+# Paths are relative to the data root: --data-dir > $DNASTY_DATA_DIR > data_dir below.
+nas:
+  seed: 0
+  device: cpu
+  data_dir: datasets
+  data:
+    name: cpsc2d          # cpsc2d (wavelet images) or cpsc1d (raw lead)
+    subdir: cpsc_data/test100
+    reference: cpsc_data/reference300.csv
+    wavelet: mexh
+    lead: 3
+    train_pct: 0.6
+    num_workers: 0
+  train:
+    epochs: 10            # post-search training of the best genomes
+    batch_size: 20
+    lr: 0.0005
+  eval:
+    batch_size: 64
+  num_classes: 9
+  image_dims: 128
+  in_channels: 1
+  population_size: 10
+  generations: 4            # 40 evaluations per run: fits a CPU benchmark on the 100-record subset
+  search_strategy: random   # random | regularized_evolution
+  evolution:                # used by regularized_evolution
+    sample_size: 3          # tournament size
+    crossover_prob: 0.0     # 0 = mutation only (Real et al. 2019)
+    mutation:               # relative weights of the mutation operators
+      hparam: 0.7
+      insert_conv: 0.15
+      delete_conv: 0.15
+  perf_metric: val_acc
+  estimator:
+    low_fidelity:
+      epochs: 1
+  search_space:
+    cbam:
+      cells: 2
+      conv: 2
+      linear: 2
+      max_num_params: 1_000_000
+      max_outdims: 25
+      min_outdims: 5

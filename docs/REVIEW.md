@@ -209,7 +209,10 @@ change. The port targets Python-side hot paths and the benchmark has to isolate 
 
 1. **Benchmark harness** (done: `dnasty benchmark`, `dnasty.benchmark`, `SyntheticEstimator`, `CachedEstimator`):
    seeded runs, fixed evaluation budget, random-search baseline, ≥ 3 repeats, results to `runs/`. Everything below is
-   judged with it.
+   judged with it. First result on the 100-record CPSC subset with the 1-epoch estimator (40 evaluations, 3 seeds):
+   random 0.317 ± 0.012 vs regularised evolution 0.308 ± 0.012, majority-class baseline 0.275, repeat noise of a
+   single genome ≈ 0.04. The estimator is noise at this data size, which makes item 4 the prerequisite for any
+   strategy comparison on real data.
 2. **Genes without metaprogramming**: dataclass genes, strict validation, `Genome.__eq__`/`__hash__`, pure
    validity checks.
 3. **Search space v2** (section 4): dimension-agnostic cells, GAP head, analytic params/FLOPs, `tiny/small/medium`.

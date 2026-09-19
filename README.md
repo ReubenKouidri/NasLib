@@ -89,6 +89,26 @@ cache, so each architecture is trained once). The run directory `runs/bench-<tim
 the best-so-far curve of every run and `summary.json`. The wall time of a synthetic run is the strategy's own
 overhead, which is the baseline for the planned Mojo port.
 
+On the 100-record CPSC subset (`configs/bench_cpsc.yaml`: 40 evaluations, 1 training epoch, 60 train / 40 validation
+records, Intel CPU) the two strategies are indistinguishable:
+
+```bash
+DNASTY_DATA_DIR=datasets uv run dnasty benchmark --config configs/bench_cpsc.yaml --estimator low-fidelity --seeds 0 1 2
+```
+
+| strategy | best mean | std | min | max | time/s |
+|---|---|---|---|---|---|
+| random | 0.3167 | 0.0118 | 0.3000 | 0.3250 | 132 |
+| regularized_evolution | 0.3083 | 0.0118 | 0.3000 | 0.3250 | 29 |
+
+That is expected: with 40 validation records the accuracy resolution is 0.025, the majority-class baseline is 0.275,
+and re-training the same genome four times moves its fitness by about 0.04 (as much as the spread between
+architectures). One epoch on 60 records is three gradient steps, so the estimator cannot rank architectures on this
+subset and the "best" genome is just the largest of 40 noisy draws. A meaningful comparison needs the full CPSC 2018
+set or PTB-XL, more epochs, and a finer metric (macro-F1 or AUROC): roadmap item 4 in the review. The evolution run
+is faster because its initial population is the same ten genomes random search evaluated for that seed (served from
+the cache) and its children are mostly small models.
+
 From Python:
 
 ```python

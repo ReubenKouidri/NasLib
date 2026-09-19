@@ -8,6 +8,7 @@
   mutations, one-point crossover at cell boundaries.
 - `dnasty benchmark`: runs each strategy at each seed with the same evaluation budget and writes best-so-far curves
   and a summary; `SyntheticEstimator` (deterministic, training-free landscape) and `CachedEstimator`.
+- `configs/bench_cpsc.yaml` and the first low-fidelity benchmark result on the CPSC subset (README).
 - `Genome.arch_key()`, `to_sequence()`, `spawn()`; `build_strategy()` registry; `dnasty search --strategy/--estimator`
   and `evaluated.jsonl` per run.
 
