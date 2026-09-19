@@ -216,7 +216,12 @@ change. The port targets Python-side hot paths and the benchmark has to isolate 
 2. **Genes without metaprogramming**: dataclass genes, strict validation, `Genome.__eq__`/`__hash__`, pure
    validity checks.
 3. **Search space v2** (section 4): dimension-agnostic cells, GAP head, analytic params/FLOPs, `tiny/small/medium`.
-4. **Data v2** (section 2): PTB-XL 1D loader with cached preprocessing, all leads, multi-label metrics; CPSC full.
+4. **Data v2** (section 2): PTB-XL 1D loader with cached preprocessing, all leads, multi-label metrics (done:
+   `PTBXLDataset` with predefined folds, six tasks and a float16 memmap cache; `Trainer` with `BCEWithLogitsLoss`
+   and macro-AUROC / macro-F1; `ECGNet1d` reference; subset downloads). First result: ECGNet1d (104k params) on a 2,700-record subset reaches
+   0.910 macro-AUROC with a repeat sd of 0.001 (CPSC 1-epoch estimator: 0.04), i.e. a usable fitness signal.
+   CPSC full still to do. Searching PTB-XL
+   needs item 3, since the `cbam` space is 2D.
 5. **Strategies** (section 3): `RegularizedEvolution` with the operator library (done: mutation-only aging evolution,
    hyper-parameter / insert-conv / delete-conv mutations, one-point crossover behind `evolution.crossover_prob`;
    ablations still to run on real data), `NSGA2`,

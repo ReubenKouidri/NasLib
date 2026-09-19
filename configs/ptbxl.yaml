@@ -1,0 +1,38 @@
+# PTB-XL, superdiagnostic task (5 classes), 100 Hz, all 12 leads, predefined
+# folds 1-8 / 9 / 10. Fetch a subset first, e.g.
+#   dnasty data download ptbxl --data-dir data --folds 1 2 3 4 5 6 7 8 9 --limit-per-fold 300
+# Records missing on disk are skipped, so any subset works.
+#
+# The 2D cbam search space cannot consume (12, 1000) signals yet (roadmap item
+# 3); this config trains the ECGNet1d reference model via examples/ptbxl_reference.py.
+nas:
+  seed: 0
+  device: cpu
+  data_dir: data
+  data:
+    name: ptbxl
+    subdir: ptbxl
+    sampling_rate: 100
+    task: superdiagnostic     # superdiagnostic | subdiagnostic | diagnostic | form | rhythm | all
+    train_folds: [1, 2, 3, 4, 5, 6, 7, 8]
+    val_fold: 9
+    leads: all                # or a list such as [I, II, V1]
+    normalize: record         # per-record, per-lead z-score
+    min_likelihood: 0
+    num_workers: 0
+  train:
+    epochs: 10
+    batch_size: 64
+    lr: 0.001
+  eval:
+    batch_size: 256
+  metric: macro_auroc         # macro_auroc | macro_f1
+  num_classes: 5
+  in_channels: 12
+  input_length: 1000
+  population_size: 10
+  generations: 10
+  search_strategy: regularized_evolution
+  estimator:
+    low_fidelity:
+      epochs: 2

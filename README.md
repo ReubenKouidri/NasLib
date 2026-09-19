@@ -15,7 +15,8 @@ search space against the current literature, plus the roadmap that follows from 
 | Search space | `cbam`: chain of `[ConvBlock2d × n → MaxPool2d → CBAM] × cells → Flatten → LinearBlock × linear` on 128×128 single-channel images |
 | Search strategy | `RandomSearch` (the baseline every other strategy has to beat); `RegularizedEvolution` (aging evolution, Real et al. 2019) with hyper-parameter, insert-conv and delete-conv mutations and optional one-point crossover at cell boundaries |
 | Estimator | `LowFidelityEstimator` (train for a few epochs, best validation accuracy); `SyntheticEstimator` (deterministic training-free landscape for comparing strategies); `CachedEstimator` (memoises on the architecture); `MockEstimator` (random fitness, for tests) |
-| Data | CPSC 2018 single-lead records as raw signals (`cpsc1d`) or Mexican-hat wavelet images (`cpsc2d`); PhysioNet downloads for MIT-BIH, PTB-XL and CPSC 2018 |
+| Data | PTB-XL 12-lead records with the predefined folds, six label tasks, multi-hot targets and a cached memmap (`ptbxl`); CPSC 2018 single-lead records as raw signals (`cpsc1d`) or Mexican-hat wavelet images (`cpsc2d`); PhysioNet downloads for MIT-BIH, PTB-XL (with subsets) and CPSC 2018 |
+| Training | `Trainer` picks the loss from the targets (cross-entropy or `BCEWithLogitsLoss`) and scores `accuracy`, `macro_auroc` or `macro_f1` over the whole validation set; `ECGNet1d` is a 100k-parameter 1D reference model |
 
 Multi-objective selection, zero-cost proxies, predictors and a cell-based search space are the next milestones; see the roadmap in the review.
 
@@ -47,8 +48,41 @@ uv run dnasty data download mitbih --data-dir data
 uv run dnasty data download ptbxl --data-dir data
 ```
 
+PTB-XL is 1.7 GB at 100 Hz; a subset is enough to develop against, and records missing on disk are skipped
+by the loader (about 25 kB per record):
+
+```bash
+uv run dnasty data download ptbxl --data-dir data --folds 1 2 3 4 5 6 7 8 9 --limit-per-fold 300
+```
+
 The data root is resolved as `--data-dir`, then `$DNASTY_DATA_DIR`, then `data_dir` in the config.
-The bundled configs expect `<root>/cpsc_data/test100/*.mat` and `<root>/cpsc_data/reference300.csv`.
+The CPSC configs expect `<root>/cpsc_data/test100/*.mat` and `<root>/cpsc_data/reference300.csv`;
+`configs/ptbxl.yaml` expects `<root>/ptbxl/` as downloaded.
+
+### PTB-XL
+
+`PTBXLDataset` follows the PTB-XL benchmark (Strodthoff et al. 2021): patient-disjoint folds 1-8 for training,
+9 for validation and 10 for testing; tasks `superdiagnostic` (5 classes), `subdiagnostic` (23), `diagnostic`
+(44), `form` (19), `rhythm` (12) and `all` (71), with multi-hot targets. On first use the records are read
+with `wfdb`, standardised per record and lead, and written once to a float16 memmap under `<root>/ptbxl/cache/`;
+later runs and `DataLoader` workers read the memmap only. Multi-label data trains with `BCEWithLogitsLoss` and
+is scored with macro-AUROC (mean one-versus-rest AUROC over the classes), the benchmark's metric, or macro-F1.
+
+```bash
+uv run python examples/ptbxl_reference.py --config configs/ptbxl.yaml --epochs 8 --repeats 3
+```
+
+trains the `ECGNet1d` reference model on the downloaded records and prints per-epoch macro-AUROC, per-class
+AUROC and the spread over repeats. On the 2,700-record subset above (2,383 train / 288 validation, superdiagnostic,
+Intel CPU, about 5 s per epoch):
+
+| repeats | best macro-AUROC | sd over repeats | after 1 epoch | per-class (CD, HYP, MI, NORM, STTC) |
+|---|---|---|---|---|
+| 3 × 8 epochs | 0.910 | 0.001 | 0.88 to 0.90 | 0.905, 0.85, 0.91, 0.94, 0.91 |
+
+The published benchmark on the full data (xresnet1d101) is 0.93. The repeat noise here is 0.001 against 0.04 for
+the 1-epoch CPSC estimator, so this data gives a usable fitness signal. The `cbam` search space is still 2D, so
+PTB-XL is not searchable until the dimension-agnostic search space (roadmap item 3) lands.
 
 ## Run a search
 
@@ -139,16 +173,16 @@ Tests that need the CPSC files are marked `data` and skip when the files are abs
 
 ```
 src/dnasty/
-  data/             datasets, seeded splits, PhysioNet downloads
-  defaults/         Trainer and a hand-designed reference model
+  data/             CPSC and PTB-XL datasets, DataModule (seeded or predefined splits), PhysioNet downloads
+  defaults/         Trainer (CE or BCE, accuracy / macro-AUROC / macro-F1) and reference models (2D CBAM, ECGNet1d)
   estimators/       fitness estimators
   search_space/     common building blocks + the cbam space (genes, genome, components)
   search_strategies/ RandomSearch, RegularizedEvolution, mutation/crossover operators
   benchmark.py      strategy comparison harness (dnasty benchmark)
-  utils/            Config (YAML/JSON), seeding, metrics, wavelets
-configs/            default.yaml, tiny.yaml
+  utils/            Config (YAML/JSON), seeding, metrics (AUROC, F1), wavelets
+configs/            default.yaml, tiny.yaml, bench_cpsc.yaml, ptbxl.yaml
 docs/REVIEW.md      review and roadmap
-examples/           fitness-vs-trained-score correlation script
+examples/           fitness-vs-trained-score correlation; PTB-XL reference training
 ```
 
 ## License

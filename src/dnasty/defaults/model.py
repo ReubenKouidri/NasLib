@@ -29,3 +29,46 @@ class S_2RB2D2(nn.Sequential):
             ]
         )
         super().__init__(architecture)
+
+
+class ECGNet1d(nn.Sequential):
+    """Small 1D CNN reference for raw multi-lead ECG (about 100k parameters).
+
+    stem conv (stride 2) -> 3 x [conv -> BN -> ReLU -> max-pool] -> global
+    average pooling -> linear. Same padding throughout, so any input length
+    works; the output is raw logits for either loss.
+    """
+
+    def __init__(
+        self, in_channels: int = 12, num_classes: int = 5, width: int = 32
+    ) -> None:
+        def block(cin: int, cout: int, kernel_size: int) -> nn.Sequential:
+            return nn.Sequential(
+                nn.Conv1d(cin, cout, kernel_size, padding=kernel_size // 2, bias=False),
+                nn.BatchNorm1d(cout),
+                nn.ReLU(inplace=True),
+                nn.MaxPool1d(2),
+            )
+
+        super().__init__(
+            OrderedDict(
+                [
+                    (
+                        "stem",
+                        nn.Sequential(
+                            nn.Conv1d(
+                                in_channels, width, 7, stride=2, padding=3, bias=False
+                            ),
+                            nn.BatchNorm1d(width),
+                            nn.ReLU(inplace=True),
+                        ),
+                    ),
+                    ("block1", block(width, 2 * width, 5)),
+                    ("block2", block(2 * width, 4 * width, 5)),
+                    ("block3", block(4 * width, 4 * width, 3)),
+                    ("gap", nn.AdaptiveAvgPool1d(1)),
+                    ("flatten", nn.Flatten()),
+                    ("head", nn.Linear(4 * width, num_classes)),
+                ]
+            )
+        )

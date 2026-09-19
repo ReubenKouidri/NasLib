@@ -103,7 +103,17 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
 def cmd_data_download(args: argparse.Namespace) -> int:
     from dnasty.data.download import download
 
-    target = download(args.name, args.data_dir)
+    options = {}
+    if args.name == "ptbxl":
+        options = dict(
+            sampling_rate=args.sampling_rate,
+            folds=args.folds,
+            limit_per_fold=args.limit_per_fold,
+        )
+    elif args.folds or args.limit_per_fold or args.sampling_rate != 100:
+        print("--folds, --limit-per-fold and --sampling-rate apply to ptbxl only")
+        return 2
+    target = download(args.name, args.data_dir, **options)
     print(f"Downloaded {args.name} to {target}")
     return 0
 
@@ -154,6 +164,22 @@ def build_parser() -> argparse.ArgumentParser:
     dl = data_sub.add_parser("download", help="download a dataset from PhysioNet")
     dl.add_argument("name", choices=["mitbih", "ptbxl", "cpsc2018"])
     dl.add_argument("--data-dir", default="data")
+    dl.add_argument(
+        "--sampling-rate", type=int, choices=[100, 500], default=100, help="ptbxl only"
+    )
+    dl.add_argument(
+        "--folds",
+        nargs="+",
+        type=int,
+        default=None,
+        help="ptbxl only: strat_fold values",
+    )
+    dl.add_argument(
+        "--limit-per-fold",
+        type=int,
+        default=None,
+        help="ptbxl only: at most this many records per fold (~25 kB each at 100 Hz)",
+    )
     dl.set_defaults(func=cmd_data_download)
     return parser
 
